@@ -1,0 +1,36 @@
+---
+- name: Install NGINX
+  hosts: odoo
+  remote_user: root
+
+  tasks:
+    - name: Nginx | Instalar nginx e configurar proxy
+      apt: pkg={{ item }} state=installed
+      with_items:
+        - nginx
+      tags: ['configuration', 'webserver']
+
+    - name: Nginx | Criar configuracao
+      template:
+        src: "{{item}}.j2"
+        dest: "/etc/nginx/sites-available/odoo"
+        owner: root
+        group: root
+        mode: 0755
+      with_items: ['nginx']
+
+    - name: Nginx | Link para habilitar o site
+      file:
+        src: "/etc/nginx/sites-available/odoo"
+        dest: "/etc/nginx/sites-enabled/odoo"
+        state: link
+
+    - name: Nginx | Remover nginx default configuracao
+      file:
+        path: "/etc/nginx/sites-available/default"
+        state: absent
+
+    - name: Nginx | Assegurar que Nginx esta instalado (package)
+      service:
+        name: nginx
+        state: restarted
