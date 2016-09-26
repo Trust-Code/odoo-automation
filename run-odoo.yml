@@ -14,8 +14,9 @@
         default: 8069
         private: no
 
-    tasks:
       - name: Inicia o docker odoo
+        become: yes
+        become_user: odoo
         docker_container:
           name: trustcode-odoo
           image: quay.io/danimaribeiro/docker-odoo

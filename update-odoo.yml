@@ -15,7 +15,7 @@
         default: 8069
         private: no
       - name: "db_update"
-        prompt: "Digite o banco para atualizar"
+        prompt: "Digite o banco para atualizar (vazio para pular atualizacao)"
         private: no
       - name: "module_update"
         prompt: "Digite o modulo a atualizar"
@@ -23,19 +23,28 @@
 
     tasks:
       - name: Atualiza a imagem do Odoo
+        become: yes
+        become_user: odoo
         docker_image:
           name: quay.io/danimaribeiro/docker-odoo
           force: yes
 
       - name: Deleta o docker odoo de update
+        become: yes
+        become_user: odoo
         docker_container:
           name: trustcode-update-odoo
           state: absent
 
       - name: Inicia o docker odoo em modo atualizacao
+        become: yes
+        become_user: odoo
         command: "docker run --name trustcode-update-odoo --net host quay.io/danimaribeiro/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ db_update }} -u {{ module_update }} -w {{ pg_password }} --stop-after-init"
+        when: db_update != ""
 
       - name: Recria o docker odoo
+        become: yes
+        become_user: odoo
         docker_container:
           name: trustcode-odoo
           image: quay.io/danimaribeiro/docker-odoo

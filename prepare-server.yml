@@ -21,7 +21,8 @@
   tasks:
     - name: Configura usuário padrão
       user:
-        name: trustcode
+        name: odoo
+        uid: 1040
         shell: /bin/bash
         groups: sudo
         append: yes
