@@ -1,0 +1,19 @@
+---
+  - name: Run Odoo
+    hosts: odoo
+    remote_user: root
+
+    tasks:
+      - name: pull docker odoo
+        docker_image:
+          name: quay.io/danimaribeiro/docker-odoo
+          pull: True
+      - name: Inicia o docker odoo
+        docker_container:
+          name: trustcode-odoo
+          image: quay.io/danimaribeiro/docker-odoo
+          network_mode: host
+          restart: yes
+          env:
+            PG_PASSWORD: 123456
+            PORT: 8090

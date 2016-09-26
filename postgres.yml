@@ -1,0 +1,36 @@
+---
+- name: Install PostgreSQL
+  hosts: db
+  remote_user: root
+  gather_facts: no
+  pre_tasks:
+    - name: 'Install python2'
+      raw: apt-get -y install python-simplejson
+  vars_prompt:
+    - name: "pg_password"
+      prompt: "Digite a senha do usuario a criar"
+
+
+  tasks:
+    - name: Install postgres
+      apt: pkg={{ item }} state=installed
+      with_items:
+        - postgresql-common
+        - postgresql-contrib
+        - postgresql
+        - libpq-dev
+        - python-psycopg2
+      tags:
+        - packages
+    - name: PostgreSQL | Ensure PostgreSQL is running
+      service:
+        name: postgresql
+        state: started
+    - name: Create a postgres user
+      become: yes
+      become_user: postgres
+      postgresql_user:
+        name: odoo
+        password: "{{ pg_password }}"
+        role_attr_flags: CREATEDB,NOSUPERUSER
+        state: present
