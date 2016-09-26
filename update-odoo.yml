@@ -1,0 +1,49 @@
+---
+  - name: Update Odoo Instalation
+    hosts: odoo
+    remote_user: root
+    vars_prompt:
+      - name: "pg_user"
+        prompt: "Digite o nome do usuario postgres"
+        default: odoo
+        private: no
+      - name: "pg_password"
+        prompt: "Digite a senha do usuario postgres"
+        default: "123456"
+      - name: "odoo_port"
+        prompt: "Digite a porta no qual o Odoo vai rodar"
+        default: 8069
+        private: no
+      - name: "db_update"
+        prompt: "Digite o banco para atualizar"
+        private: no
+      - name: "module_update"
+        prompt: "Digite o modulo a atualizar"
+        private: no
+
+    tasks:
+      - name: Atualiza a imagem do Odoo
+        docker_image:
+          name: quay.io/danimaribeiro/docker-odoo
+          force: yes
+
+      - name: Deleta o docker odoo de update
+        docker_container:
+          name: trustcode-update-odoo
+          state: absent
+
+      - name: Inicia o docker odoo em modo atualizacao
+        command: "docker run --name trustcode-update-odoo --net host quay.io/danimaribeiro/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ db_update }} -u {{ module_update }} -w {{ pg_password }} --stop-after-init"
+
+      - name: Recria o docker odoo
+        docker_container:
+          name: trustcode-odoo
+          image: quay.io/danimaribeiro/docker-odoo
+          network_mode: host
+          restart: yes
+          state: started
+          recreate: yes
+          env:
+            PG_USER: "{{ pg_user }}"
+            PG_PASSWORD: "{{ pg_password }}"
+            PORT: "{{ odoo_port }}"

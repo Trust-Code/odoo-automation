@@ -21,6 +21,7 @@
           image: quay.io/danimaribeiro/docker-odoo
           network_mode: host
           restart: yes
+          state: started
           env:
             PG_USER: "{{ pg_user }}"
             PG_PASSWORD: "{{ pg_password }}"
