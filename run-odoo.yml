@@ -2,12 +2,19 @@
   - name: Run Odoo
     hosts: odoo
     remote_user: root
+    vars_prompt:
+      - name: "pg_user"
+        prompt: "Digite o nome do usuario postgres"
+        default: odoo
+        private: no
+      - name: "pg_password"
+        prompt: "Digite a senha do usuario postgres"
+      - name: "odoo_port"
+        prompt: "Digite a porta no qual o Odoo vai rodar"
+        default: 8069
+        private: no
 
     tasks:
-      - name: pull docker odoo
-        docker_image:
-          name: quay.io/danimaribeiro/docker-odoo
-          pull: True
       - name: Inicia o docker odoo
         docker_container:
           name: trustcode-odoo
@@ -15,5 +22,6 @@
           network_mode: host
           restart: yes
           env:
-            PG_PASSWORD: 123456
-            PORT: 8090
+            PG_USER: "{{ pg_user }}"
+            PG_PASSWORD: "{{ pg_password }}"
+            PORT: "{{ odoo_port }}"

@@ -45,6 +45,7 @@
       iptables:
         chain: INPUT
         jump: DROP
+        state: absent
 
     - name: Check if swap file exists
       stat:
