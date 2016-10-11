@@ -43,6 +43,8 @@
         when: db_update != ""
 
       - name: Cria a pasta dados
+        become: yes
+        become_user: root
         file: path=/opt/dados state=directory mode=0755 owner=odoo
 
       - name: Recria o docker odoo
@@ -61,3 +63,13 @@
             PG_USER: "{{ pg_user }}"
             PG_PASSWORD: "{{ pg_password }}"
             PORT: "{{ odoo_port }}"
+
+      - name: Modifica a senha padrão
+        become: yes
+        become_user: odoo
+        command: "docker exec trustcode-odoo sed -i 's/senha_admin/{{ lookup('password', '/tmp/passwordfile chars=ascii_letters,digits') }}/' odoo.conf"
+
+      - name: Reinicia o odoo via supervisor para pegar nova senha
+        become: yes
+        become_user: odoo
+        command: "docker exec trustcode-odoo supervisorctl restart odoo"

@@ -1,7 +1,11 @@
 ---
   - name: Run Odoo
     hosts: odoo
-    remote_user: root
+    pre_tasks:
+      - name: 'Install python2'
+        become: true
+        become_user: root
+        raw: apt-get -y install python-simplejson
     vars_prompt:
       - name: "pg_user"
         prompt: "Digite o nome do usuario postgres"
@@ -13,13 +17,30 @@
         prompt: "Digite a porta no qual o Odoo vai rodar"
         default: 8069
         private: no
+      - name: "user_password"
+        prompt: "Enter a password for the user"
+        private: yes
+        encrypt: "md5_crypt" #need to have python-passlib installed in local machine before we can use it
+        confirm: yes
+        salt_size: 7
 
+    tasks:
+      - name: Configura usuário padrão
+        become: true
+        become_user: root
+        user:
+          name: odoo
+          uid: 1040
+          shell: /bin/bash
+          groups: sudo
+          append: yes
+          password: "{{user_password}}"
       - name: Inicia o docker odoo
         become: yes
         become_user: odoo
         docker_container:
           name: trustcode-odoo
-          image: quay.io/danimaribeiro/docker-odoo
+          image: trustcode/docker-odoo
           network_mode: host
           restart: yes
           state: started
