@@ -67,7 +67,7 @@
       - name: Modifica a senha padrão
         become: yes
         become_user: odoo
-        command: "docker exec trustcode-odoo sed -i 's/senha_admin/{{ lookup('password', '/tmp/passwordfile chars=ascii_letters,digits') }}/' odoo.conf"
+        command: "docker exec -u root trustcode-odoo sed -i 's/senha_admin/{{ lookup('password', '/tmp/passwordfile chars=ascii_letters,digits') }}/' /etc/odoo/odoo.conf"
 
       - name: Reinicia o odoo via supervisor para pegar nova senha
         become: yes
