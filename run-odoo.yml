@@ -6,23 +6,18 @@
         become: true
         become_user: root
         raw: apt-get -y install python-simplejson
+    vars:
+      pg_password: "{{ lookup('password', '~/ansible/postgres-password chars=ascii_letters,digits') }}"
+      server_admin_password: "{{ lookup('password', '~/ansible/server-password chars=ascii_letters,digits') }}"
+      user_odoo_password: "{{ lookup('password', '~/ansible/odoo-user-password chars=ascii_letters,digits') }}"
     vars_prompt:
       - name: "pg_user"
         prompt: "Digite o nome do usuario postgres"
         default: odoo
         private: no
-      - name: "pg_password"
-        prompt: "Digite a senha do usuario postgres"
-      - name: "odoo_port"
         prompt: "Digite a porta no qual o Odoo vai rodar"
-        default: 8069
+        default: 8090
         private: no
-      - name: "user_password"
-        prompt: "Enter a password for the user"
-        private: yes
-        encrypt: "md5_crypt" #need to have python-passlib installed in local machine before we can use it
-        confirm: yes
-        salt_size: 7
 
     tasks:
       - name: Configura usuário padrão
@@ -34,7 +29,8 @@
           shell: /bin/bash
           groups: sudo
           append: yes
-          password: "{{user_password}}"
+          password: "{{user_odoo_password}}"
+
       - name: Inicia o docker odoo
         become: yes
         become_user: odoo
