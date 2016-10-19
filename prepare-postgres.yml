@@ -1,19 +1,11 @@
 ---
 - name: Install PostgreSQL
-  hosts: db
-  remote_user: root
+  hosts: desenvolvimento:producao
   gather_facts: no
+  become: yes
   pre_tasks:
     - name: 'Install python2'
       raw: apt-get -y install python-simplejson
-  vars:
-    pg_password: "{{ lookup('password', '~/ansible/postgres-password chars=ascii_letters,digits') }}"
-    server_admin_password: "{{ lookup('password', '~/ansible/server-password chars=ascii_letters,digits') }}"
-    user_odoo_password: "{{ lookup('password', '~/ansible/odoo-user-password chars=ascii_letters,digits') }}"
-  vars_prompt:
-    - name: "pg_password"
-      prompt: "Digite a senha do usuario a criar"
-
 
   tasks:
     - name: Install postgres
@@ -30,11 +22,7 @@
       service:
         name: postgresql
         state: started
-    - name: Create a postgres user
+    - name: Local PostgreSQL - Active the 'unaccent' extension on databases
       become: yes
       become_user: postgres
-      postgresql_user:
-        name: odoo
-        password: "{{ pg_password }}"
-        role_attr_flags: CREATEDB,NOSUPERUSER
-        state: present
+      postgresql_ext: name=unaccent db=template0

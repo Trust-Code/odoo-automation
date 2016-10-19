@@ -1,7 +1,7 @@
 ---
 - name: Install NGINX
-  hosts: odoo
-  remote_user: root
+  hosts: producao
+  become: yes
 
   tasks:
     - name: Nginx | Instalar nginx e configurar proxy

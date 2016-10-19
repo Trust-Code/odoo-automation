@@ -1,25 +1,16 @@
 ---
 - name: Prepare server
-  hosts: odoo
-  remote_user: root
+  hosts: producao
+  become: yes
   gather_facts: no
   vars:
     swap_file_path: /mnt/swap2048mb.swap
     swap_file_size_kb: 2048
     swappiness: 10
-    pg_password: "{{ lookup('password', '~/ansible/postgres-password chars=ascii_letters,digits') }}"
-    server_admin_password: "{{ lookup('password', '~/ansible/server-password chars=ascii_letters,digits') }}"
     user_odoo_password: "{{ lookup('password', '~/ansible/odoo-user-password chars=ascii_letters,digits') }}"
   pre_tasks:
     - name: 'Install python2'
       raw: apt-get -y install python-simplejson
-  vars_prompt:
-    - name: "user_password"
-      prompt: "Enter a password for the user"
-      private: yes
-      encrypt: "md5_crypt" #need to have python-passlib installed in local machine before we can use it
-      confirm: yes
-      salt_size: 7
 
   tasks:
     - name: Configura usuário padrão
@@ -29,7 +20,7 @@
         shell: /bin/bash
         groups: sudo
         append: yes
-        password: "{{user_password}}"
+        password: "{{user_odoo_password}}"
 
     - name: Permite ssh no firewall
       iptables:
