@@ -25,4 +25,4 @@
     - name: Local PostgreSQL - Active the 'unaccent' extension on databases
       become: yes
       become_user: postgres
-      postgresql_ext: name=unaccent db=template0
+      postgresql_ext: name=unaccent db=template1 port={{ pg_port }}

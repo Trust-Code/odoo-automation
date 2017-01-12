@@ -9,7 +9,7 @@
         raw: apt-get -y install python-psycopg2 python-pip
     vars:
       pg_user: "odoo_10"
-      odoo_port: 8050
+      odoo_port: 8040
       pg_password: "{{ lookup('password', '~/ansible/postgres-password chars=ascii_letters,digits') }}"
       server_admin_password: "{{ lookup('password', '~/ansible/server-password chars=ascii_letters,digits') }}"
       user_odoo_password: "{{ lookup('password', '~/ansible/odoo-user-password chars=ascii_letters,digits') }}"
@@ -54,41 +54,41 @@
         become: yes
         become_user: odoo
         docker_container:
-          name: "trustcode-update-odoo-{{ item }}"
+          name: "enterprise-update-odoo-{{ item }}"
           state: absent
         with_items: "{{ databases }}"
 
       - name: Inicia o docker odoo e inicializa a base de dados
         become: yes
         become_user: odoo
-        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+        command: "docker run --name enterprise-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} -w {{ pg_password }} --without-demo=all --stop-after-init"
         when: dbstatus.changed
         with_items: "{{ databases }}"
 
       - name: Inicia o docker odoo em modo atualizacao
         become: yes
         become_user: odoo
-        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+        command: "docker run --name enterprise-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} -w {{ pg_password }} --without-demo=all --stop-after-init"
         when: module_update != "" and not dbstatus.changed
         with_items: "{{ databases }}"
 
       - name: Cria a pasta dados
         become: yes
         become_user: root
-        file: path=/opt/dados state=directory mode=0755 owner=odoo
+        file: path=/opt/enterprise state=directory mode=0755 owner=odoo
 
       - name: Recria o docker odoo
         become: yes
         become_user: odoo
         docker_container:
-          name: trustcode-odoo
+          name: enterprise-odoo
           image: trustcode/docker-odoo
           network_mode: host
           restart: yes
           state: started
           recreate: yes
           volumes:
-            - "/opt/dados:/opt/dados"
+            - "/opt/enterprise:/opt/dados"
           env:
             PG_USER: "{{ pg_user }}"
             PG_PASSWORD: "{{ pg_password }}"
@@ -104,7 +104,7 @@
         become: yes
         become_user: odoo
         command: docker exec -u root trustcode-odoo bash -c "echo 'dbfilter = ^%d' >> /etc/odoo/odoo.conf"
-        when: inventory_hostname in groups['producao']
+        when: inventory_hostname in groups['trustcode']
 
       - name: Reinicia o odoo via supervisor para pegar nova senha
         become: yes
@@ -135,3 +135,33 @@
           name: nginx
           state: restarted
         when: inventory_hostname in groups['producao']
+
+      - name: Criando a pasta ssh
+        become: yes
+        become_user: odoo
+        file: path=/home/odoo/.ssh state=directory
+
+      - name: Create the SSH public key file
+        become: yes
+        become_user: odoo
+        copy:
+          src=~/.ssh/id_rsa.pub
+          dest=/home/odoo/.ssh/id_rsa.pub
+          mode=0644
+      - name: Create the SSH private key file
+        become: yes
+        become_user: odoo
+        copy:
+          src=~/.ssh/id_rsa
+          dest=/home/odoo/.ssh/id_rsa
+          mode=0600
+
+      - name: Realizando o download da versão enterprise
+        become: yes
+        become_user: odoo
+        git:
+          accept_hostkey: True
+          repo: git@github.com:odoo/enterprise.git
+          dest: /opt/enterprise/addons/10.0
+          version: 10.0
+          key_file: /home/odoo/.ssh/id_rsa
