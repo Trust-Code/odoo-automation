@@ -104,7 +104,7 @@
         become: yes
         become_user: odoo
         command: docker exec -u root trustcode-odoo bash -c "echo 'dbfilter = ^%d' >> /etc/odoo/odoo.conf"
-        when: inventory_hostname in groups['producao']
+        when: inventory_hostname in groups['trustcode']
 
       - name: Reinicia o odoo via supervisor para pegar nova senha
         become: yes

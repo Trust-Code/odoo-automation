@@ -97,19 +97,19 @@
       - name: Modifica a senha padrão
         become: yes
         become_user: odoo
-        command: "docker exec -u root trustcode-odoo sed -i 's/senha_admin/{{ server_admin_password }}/' /etc/odoo/odoo.conf"
+        command: "docker exec -u root enterprise-odoo sed -i 's/senha_admin/{{ server_admin_password }}/' /etc/odoo/odoo.conf"
         when: inventory_hostname in groups['producao']
 
       - name: Adicionando dbfilter ao arquivo de configuração
         become: yes
         become_user: odoo
-        command: docker exec -u root trustcode-odoo bash -c "echo 'dbfilter = ^%d' >> /etc/odoo/odoo.conf"
+        command: docker exec -u root enterprise-odoo bash -c "echo 'dbfilter = ^%d' >> /etc/odoo/odoo.conf"
         when: inventory_hostname in groups['trustcode']
 
       - name: Reinicia o odoo via supervisor para pegar nova senha
         become: yes
         become_user: odoo
-        command: "docker exec trustcode-odoo supervisorctl restart odoo"
+        command: "docker exec enterprise-odoo supervisorctl restart odoo"
         when: inventory_hostname in groups['producao']
 
       - name: Nginx | Criar configuracao
