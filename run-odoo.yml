@@ -61,14 +61,14 @@
       - name: Inicia o docker odoo e inicializa a base de dados
         become: yes
         become_user: odoo
-        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
         when: dbstatus.changed
         with_items: "{{ databases }}"
 
       - name: Inicia o docker odoo em modo atualizacao
         become: yes
         become_user: odoo
-        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
         when: module_update != "" and not dbstatus.changed
         with_items: "{{ databases }}"
 
@@ -90,6 +90,7 @@
           volumes:
             - "/opt/dados:/opt/dados"
           env:
+            PG_PORT: "{{ pg_port }}"
             PG_USER: "{{ pg_user }}"
             PG_PASSWORD: "{{ pg_password }}"
             PORT: "{{ odoo_port }}"
