@@ -4,8 +4,8 @@
   become: yes
   gather_facts: no
   vars:
-    swap_file_path: /mnt/swap2048mb.swap
-    swap_file_size_kb: 2048
+    swap_file_path: /mnt/swap4096mb.swap
+    swap_file_size_kb: 4096
     swappiness: 10
     user_odoo_password: "{{ lookup('password', '~/ansible/odoo-user-password chars=ascii_letters,digits') }}"
   pre_tasks:
