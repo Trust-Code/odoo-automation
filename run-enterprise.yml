@@ -77,6 +77,11 @@
         become_user: root
         file: path=/opt/enterprise state=directory mode=0755 owner=odoo
 
+      - name: Cria a pasta dados
+        become: yes
+        become_user: root
+        file: path=/opt/enterprise/addons/10.0 state=directory mode=0755 owner=odoo
+
       - name: Recria o docker odoo
         become: yes
         become_user: odoo

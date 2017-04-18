@@ -1,2 +1,3 @@
 ---
 databases: []
+pg_port: 5432
