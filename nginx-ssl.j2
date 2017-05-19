@@ -1,7 +1,15 @@
 server {
-       listen 80;
+    listen  80;
+    server_name {{ item }}.trustcode.com.br;
+    rewrite ^ https://$http_host$request_uri? permanent;    # force redirect http to https
+}
+
+server {
+       listen 443 ssl;
        server_name localhost {{ item }}.trustcode.com.br;
        access_log  /var/log/nginx/openerp.log;
+       ssl_certificate /etc/nginx/ssl/nginx.crt;
+       ssl_certificate_key /etc/nginx/ssl/nginx.key;
        location / {
                 proxy_pass http://127.0.0.1:{{ odoo_port }};
                 proxy_set_header Host $host;
