@@ -1,0 +1,25 @@
+---
+- name: Deploy an complete Odoo Installation
+  hosts: desenvolvimento,producao
+  become: yes
+  roles:
+      - server
+      - odoo
+  tasks:
+      - name: Print pg user
+        debug:
+            msg: "{{pg_user}}"
+      - name: Print phone records
+        debug:
+            msg: "Base {{ item.key }} is {{item.value.name }}, domain: {{' '.join(item.value.domain)}} - docker: {{item.value.docker.name}}, enterprise: {{item.value.docker.enterprise}}"
+        with_dict: "{{ databases }}"
+
+      - name: Nginx | Criar configuracao
+        template:
+            src: "nginx-ssl.j2"
+            dest: "/etc/nginx/sites-available/{{ item.key }}"
+            owner: root
+            group: root
+            mode: 0755
+        with_dict: "{{ databases }}"
+        when: inventory_hostname in groups['producao']

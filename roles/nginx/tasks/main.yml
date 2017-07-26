@@ -1,0 +1,16 @@
+---
+  - name: Nginx | Instalar nginx e configurar proxy
+    apt: pkg={{ item }} state=installed force=yes
+    with_items:
+        - nginx
+    tags: ['configuration', 'webserver']
+
+  - name: Nginx | Remover nginx default configuracao
+    file:
+        path: "/etc/nginx/sites-available/default"
+        state: absent
+
+  - name: Nginx | Assegurar que Nginx esta instalado (package)
+    service:
+        name: nginx
+        state: restarted

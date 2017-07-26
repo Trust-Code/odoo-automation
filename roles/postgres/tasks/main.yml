@@ -1,0 +1,20 @@
+---
+
+- name: Install postgres
+  apt: pkg={{ item }} state=installed
+  with_items:
+    - postgresql-common
+    - postgresql-contrib
+    - postgresql
+    - libpq-dev
+    - python-psycopg2
+  tags:
+    - packages
+- name: PostgreSQL | Ensure PostgreSQL is running
+  service:
+    name: postgresql
+    state: started
+- name: Local PostgreSQL - Active the 'unaccent' extension on databases
+  become: yes
+  become_user: postgres
+  postgresql_ext: name=unaccent db=template1 port={{ pg_port }}

@@ -1,0 +1,10 @@
+---
+- name: Deploy an complete server infrastructure for Odoo
+  hosts: desenvolvimento,producao
+  become: yes
+  roles:
+      - server
+      - postgres
+      - nginx
+      - angstwad.docker_ubuntu
+      - docker

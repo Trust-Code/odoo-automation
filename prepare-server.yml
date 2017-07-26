@@ -98,3 +98,16 @@
         value: "{{swappiness}}"
       tags:
         - swap.set.swappiness
+
+    - name: Instalando Certbot
+      apt:
+          name: software-properties-common
+          state: present
+
+    - apt_repository:
+        repo: ppa:certbot/certbot
+        state: present
+
+    - apt:
+        name: python-certbot-nginx
+        state: present
