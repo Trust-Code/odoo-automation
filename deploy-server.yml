@@ -2,6 +2,10 @@
 - name: Deploy an complete server infrastructure for Odoo
   hosts: desenvolvimento,producao
   become: yes
+  gather_facts: no
+  pre_tasks:
+    - name: 'Install python2'
+      raw: apt-get -y install python-simplejson
   roles:
       - server
       - postgres
