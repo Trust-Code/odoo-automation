@@ -76,6 +76,7 @@
         PG_USER: "{{ pg_user }}"
         PG_PASSWORD: "{{ pg_password }}"
         PORT: "{{ item.value.porta }}"
+        LONGPOLLING_PORT: "{{ item.value.porta_polling }}"
     with_dict: "{{ docker }}"
 
   - name: Modifica a senha padrão
@@ -101,7 +102,7 @@
 
   - name: Nginx | Criar configuracao
     template:
-      src: "nginx-ssl.j2"
+      src: "nginx-ssl-pre.j2"
       dest: "/etc/nginx/sites-available/{{ item.key }}"
       owner: root
       group: root
@@ -117,22 +118,33 @@
     with_dict: "{{ databases }}"
     when: inventory_hostname in groups['producao']
 
+  - set_fact:
+      tmp_item: '{{ item.value.domain }}'
+    with_dict: "{{ databases }}"
+    register: tmp_list
+
+  - name: Certbot - Cria certificados
+    become: yes
+    become_user: root
+    command: "certbot certonly --nginx -n --expand --agree-tos --email suporte@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }}"
+    with_dict: "{{ databases }}"
+
+  - name: Nginx | Criar configuracao
+    template:
+      src: "nginx-ssl-pos.j2"
+      dest: "/etc/nginx/sites-available/{{ item.key }}"
+      owner: root
+      group: root
+      mode: 0755
+    with_dict: "{{ databases }}"
+    when: inventory_hostname in groups['producao']
+
   - name: Nginx | Assegurar que Nginx esta instalado (package)
     service:
       name: nginx
       state: restarted
     when: inventory_hostname in groups['producao']
 
-  - set_fact:
-      tmp_item: '{{ item.value.domain }}'
-    with_dict: "{{ databases }}"
-    register: tmp_list
-
   - name: Print pg user
     debug:
         msg: "{{ ','.join(tmp_list.results | sum(attribute='ansible_facts.tmp_item', start=[]) | list) }}"
-
-  - name: Certbot - Busca certificados digitais para os dominios
-    become: yes
-    become_user: root
-    command: "certbot --nginx -n --expand --agree-tos --redirect -d {{ ','.join(tmp_list.results | sum(attribute='ansible_facts.tmp_item', start=[]) | list) }}"

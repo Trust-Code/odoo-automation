@@ -7,19 +7,15 @@
       prompt: "Digite o modulo a atualizar"
       private: no
   roles:
-      - odoo
+    - odoo
+
 
   tasks:
-      - set_fact:
-          tmp_item: '{{ item.value.domain }}'
-        with_dict: "{{ databases }}"
-        register: tmp_list
+  - set_fact:
+      tmp_item: '{{ item.value.domain }}'
+    with_dict: "{{ databases }}"
+    register: tmp_list
 
-      - name: Print pg user
-        debug:
-            msg: "{{ ','.join(tmp_list.results | sum(attribute='ansible_facts.tmp_item', start=[]) | list) }}"
-
-      - name: Certbot - Busca certificados digitais para os dominios
-        become: yes
-        become_user: root
-        command: "certbot --nginx -n --expand --agree-tos --email suporte@trustcode.com.br --redirect -d {{ ','.join(tmp_list.results | sum(attribute='ansible_facts.tmp_item', start=[]) | list) }}"
+  - name: Print pg user
+    debug:
+        msg: "{{ ','.join(tmp_list.results | sum(attribute='ansible_facts.tmp_item', start=[]) | list) }}"
