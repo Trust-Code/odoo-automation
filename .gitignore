@@ -6,3 +6,4 @@ producao
 testing
 *.pem
 *.retry
+iniciar_base.py
