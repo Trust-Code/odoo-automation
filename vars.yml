@@ -1,0 +1,10 @@
+---
+
+postgresql_version: 9.6
+postgresql_encoding: 'UTF-8'
+postgresql_locale: 'en_US.UTF-8'
+postgresql_ctype: 'en_US.UTF-8'
+ansible_pkg_mgr: 'apt'
+ansible_distribution_release: 'xenial'
+ansible_os_family: 'Debian'
+postgresql_cluster_reset: false

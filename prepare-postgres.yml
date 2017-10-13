@@ -3,9 +3,10 @@
   hosts: desenvolvimento:producao
   gather_facts: no
   become: yes
-  pre_tasks:
-    - name: 'Install python2'
-      raw: apt-get -y install python-simplejson
+  vars_files:
+    - vars.yml
+  roles:
+    - role: ANXS.postgresql
 
   tasks:
     - name: Install postgres

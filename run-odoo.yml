@@ -20,6 +20,14 @@
         private: no
 
     tasks:
+      - name: Configura usuário padrão
+        user:
+          name: odoo
+          uid: 1040
+          shell: /bin/bash
+          groups: sudo
+          append: yes
+          password: "{{user_odoo_password}}"
       - name: Install correct version docker-py to avoid problems
         pip: name=docker-py version=1.9.0
       - name: Check the odoo postgres user has the same password
@@ -61,7 +69,7 @@
       - name: Inicia o docker odoo e inicializa a base de dados
         become: yes
         become_user: odoo
-        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base,br_sale_stock,br_crm_zip,backup_s3,br_account_payment,account_accountant,sale,crm,br_coa -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+        command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
         when: dbstatus.changed
         with_items: "{{ databases }}"
 

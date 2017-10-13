@@ -1,0 +1,18 @@
+---
+- name: Install NGINX
+  hosts: producao
+  become: yes
+
+  tasks:
+    - name: Instalando Certbot
+      apt:
+          name: software-properties-common
+          state: present
+
+    - apt_repository:
+        repo: ppa:certbot/certbot
+        state: present
+
+    - apt:
+        name: python-certbot-nginx
+        state: present
