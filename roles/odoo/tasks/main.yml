@@ -28,7 +28,7 @@
     become: yes
     become_user: odoo
     docker_image:
-      name: trustcode/docker-odoo
+      name: trustcode/docker-odoo:v11
       force: yes
 
   - name: Deleta o docker odoo de update
@@ -42,21 +42,21 @@
   - name: Inicia o docker odoo e inicializa a base de dados
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo:v11 /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: dbstatus.changed
     with_items: "{{ databases }}"
 
   - name: Inicia o docker odoo em modo atualizacao
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo:v11 /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: module_update != "" and not dbstatus.changed
     with_items: "{{ databases }}"
 
   - name: Cria a pasta dados
     become: yes
     become_user: root
-    file: path=/opt/dados/{{ item.key }}/addons/10.0 state=directory mode=0755 owner=odoo
+    file: path=/opt/dados/{{ item.key }}/addons/11.0 state=directory mode=0755 owner=odoo
     with_dict: "{{ docker }}"
 
   - name: Recria o docker odoo
@@ -64,7 +64,7 @@
     become_user: odoo
     docker_container:
       name: trustcode-odoo-{{ item.key }}
-      image: trustcode/docker-odoo
+      image: trustcode/docker-odoo:v11
       network_mode: host
       restart: yes
       state: started
@@ -126,7 +126,7 @@
   - name: Certbot - Cria certificados
     become: yes
     become_user: root
-    command: "certbot certonly --nginx -n --expand --agree-tos --email suporte@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }}"
+    command: "certbot certonly --nginx -n --expand --agree-tos --email secure@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }}"
     with_dict: "{{ databases }}"
 
   - name: Nginx | Criar configuracao
@@ -175,8 +175,8 @@
     git:
       accept_hostkey: True
       repo: git@github.com:odoo/enterprise.git
-      dest: /opt/dados/{{ item.key }}/addons/10.0
-      version: 10.0
+      dest: /opt/dados/{{ item.key }}/addons/11.0
+      version: 11.0
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
     when: item.value.enterprise

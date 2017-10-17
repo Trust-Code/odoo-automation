@@ -1,8 +1,8 @@
 #odoo server
-upstream odoo {
+upstream odoo{{item.key}} {
     server 127.0.0.1:{{ item.value.docker.porta }};
 }
-upstream odoochat {
+upstream odoochat{{item.key}} {
     server 127.0.0.1:{{ item.value.docker.porta_polling }};
 }
 
@@ -33,10 +33,10 @@ server {
     # Redirect requests to odoo backend server
     location / {
         proxy_redirect off;
-        proxy_pass http://odoo;
+        proxy_pass http://odoo{{item.key}};
     }
     location /longpolling {
-        proxy_pass http://odoochat;
+        proxy_pass http://odoochat{{item.key}};
     }
 
     # common gzip
