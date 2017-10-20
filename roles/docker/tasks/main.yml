@@ -3,7 +3,7 @@
   pip: name=docker-py version=1.9.0
 - name: pull docker odoo
   docker_image:
-      name: trustcode/docker-odoo
+      name: trustcode/docker-odoo:v11
 
 - name: Configura usuario padrao
   user:

@@ -101,3 +101,7 @@
 - apt:
     name: python-certbot-nginx
     state: present
+
+- apt:
+    name: curl
+    state: present

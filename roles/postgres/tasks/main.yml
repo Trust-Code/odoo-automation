@@ -1,5 +1,23 @@
 ---
 
+- name: Run the fucking locales
+  command: locale-gen en_US en_US.UTF-8 pt_BR pt_BR.UTF-8
+
+- name: Seta Locale Brasil
+  command: update-locale LC_ALL=pt_BR.UTF-8
+
+- name: set default locale
+  become: yes
+  lineinfile: dest=/etc/default/locale
+    regexp="LC_ALL"
+    line="LC_ALL=\"pt_BR.UTF-8\""
+
+- name: set default locale environment
+  become: yes
+  lineinfile: dest=/etc/environment
+    regexp="LC_ALL"
+    line="LC_ALL=\"pt_BR.UTF-8\""
+
 - name: Install postgres
   apt: pkg={{ item }} state=installed
   with_items:

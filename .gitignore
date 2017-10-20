@@ -1,9 +1,5 @@
-hosts
 host_vars
 group_vars
-local
-producao
-testing
 *.pem
 *.retry
-iniciar_base.py
+inventory
