@@ -28,8 +28,9 @@
     become: yes
     become_user: odoo
     docker_image:
-      name: trustcode/docker-odoo:v11
+      name: trustcode/docker-odoo:{{ item.value.versao }}
       force: yes
+    with_dict: "{{ docker }}"
 
   - name: Deleta o docker odoo de update
     become: yes
@@ -42,21 +43,21 @@
   - name: Inicia o docker odoo e inicializa a base de dados
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo:v11 /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo:{{ item.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: dbstatus.changed
     with_items: "{{ databases }}"
 
   - name: Inicia o docker odoo em modo atualizacao
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo:v11 /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item }} --net host trustcode/docker-odoo:{{ item.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: module_update != "" and not dbstatus.changed
     with_items: "{{ databases }}"
 
   - name: Cria a pasta dados
     become: yes
     become_user: root
-    file: path=/opt/dados/{{ item.key }}/addons/11.0 state=directory mode=0755 owner=odoo
+    file: path=/opt/dados/{{ item.key }}/addons/{{ item.value.versao }} state=directory mode=0755 owner=odoo
     with_dict: "{{ docker }}"
 
   - name: Recria o docker odoo
@@ -64,7 +65,7 @@
     become_user: odoo
     docker_container:
       name: trustcode-odoo-{{ item.key }}
-      image: trustcode/docker-odoo:v11
+      image: trustcode/docker-odoo:{{ item.value.versao }}
       network_mode: host
       restart: yes
       state: started
@@ -186,7 +187,7 @@
       accept_hostkey: True
       repo: git@github.com:odoo/enterprise.git
       dest: ~/tmp/odoo-enterprise
-      version: 11.0
+      version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
     when: item.value.enterprise
@@ -198,7 +199,7 @@
       accept_hostkey: True
       repo: git@bitbucket.org:trustcode/trustcode-enterprise.git
       dest: ~/tmp/trustcode-enterprise
-      version: 11.0
+      version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
     when: item.value.enterprise

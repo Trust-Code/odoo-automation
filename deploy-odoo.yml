@@ -6,6 +6,7 @@
     - name: "module_update"
       prompt: "Digite o modulo a atualizar"
       private: no
+
   roles:
     - odoo
 
