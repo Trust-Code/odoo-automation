@@ -233,23 +233,23 @@
   - name: Deleta pasta odoo-reports
     become: yes
     become_user: odoo
-    file: path=~/tmp/odoo-reports/.git state=directory state=absent 
+    file: path=~/tmp/odoo-reports/.git state=directory state=absent
 
   - name: Copia a versão odoo enterprise
     become: yes
     become_user: odoo
-    command: cp -a ~/tmp/odoo-enterprise/. /opt/dados/{{ item.key }}/addons/11.0/
+    command: cp -a ~/tmp/odoo-enterprise/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
     when: item.value.enterprise
 
   - name: Copia a versão trustcode enterprise
     become: yes
     become_user: odoo
-    command: cp -a ~/tmp/trustcode-enterprise/. /opt/dados/{{ item.key }}/addons/11.0/
+    command: cp -a ~/tmp/trustcode-enterprise/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
 
   - name: Copia a versão odoo reports
     become: yes
     become_user: odoo
-    command: cp -a ~/tmp/odoo-reports/. /opt/dados/{{ item.key }}/addons/11.0/
+    command: cp -a ~/tmp/odoo-reports/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
