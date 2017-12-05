@@ -128,6 +128,7 @@
     become: yes
     become_user: root
     command: "certbot certonly --nginx -n --expand --agree-tos --email secure@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }}"
+    when: inventory_hostname in groups['producao']
     with_dict: "{{ databases }}"
 
   - name: Nginx | Criar configuracao
