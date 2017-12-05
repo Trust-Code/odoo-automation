@@ -16,7 +16,3 @@
       tmp_item: '{{ item.value.domain }}'
     with_dict: "{{ databases }}"
     register: tmp_list
-
-  - name: Print pg user
-    debug:
-        msg: "{{ ','.join(tmp_list.results | sum(attribute='ansible_facts.tmp_item', start=[]) | list) }}"

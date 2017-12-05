@@ -147,10 +147,6 @@
       state: restarted
     when: inventory_hostname in groups['producao']
 
-  - name: Print pg user
-    debug:
-        msg: "{{ ','.join(tmp_list.results | sum(attribute='ansible_facts.tmp_item', start=[]) | list) }}"
-
   - name: Criando a pasta ssh
     become: yes
     become_user: odoo
