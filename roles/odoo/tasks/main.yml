@@ -188,7 +188,7 @@
     git:
       accept_hostkey: True
       repo: git@github.com:odoo/enterprise.git
-      dest: ~/tmp/odoo-enterprise
+      dest: ~/tmp/odoo-enterprise/{{ item.value.versao }}/
       version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
@@ -200,7 +200,7 @@
     git:
       accept_hostkey: True
       repo: git@bitbucket.org:trustcode/trustcode-enterprise.git
-      dest: ~/tmp/trustcode-enterprise
+      dest: ~/tmp/trustcode-enterprise/{{ item.value.versao }}/
       version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
@@ -211,7 +211,7 @@
     git:
       accept_hostkey: True
       repo: git@bitbucket.org:trustcode/odoo-reports.git
-      dest: ~/tmp/odoo-reports
+      dest: ~/tmp/odoo-reports/{{ item.value.versao }}/
       version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
@@ -219,33 +219,36 @@
   - name: Deleta pasta odoo enterprise
     become: yes
     become_user: odoo
-    file: path=~/tmp/odoo-enterprise/.git state=directory state=absent
+    file: path=~/tmp/odoo-enterprise/{{ item.value.versao }}/.git state=directory state=absent
+    with_dict: "{{ docker }}"
 
   - name: Deleta pasta trustcode enterprise
     become: yes
     become_user: odoo
-    file: path=~/tmp/trustcode-enterprise/.git state=directory state=absent
+    file: path=~/tmp/trustcode-enterprise/{{ item.value.versao }}/.git state=directory state=absent
+    with_dict: "{{ docker }}"
 
   - name: Deleta pasta odoo-reports
     become: yes
     become_user: odoo
-    file: path=~/tmp/odoo-reports/.git state=directory state=absent
+    file: path=~/tmp/odoo-reports/{{ item.value.versao }}/.git state=directory state=absent
+    with_dict: "{{ docker }}"
 
   - name: Copia a versão odoo enterprise
     become: yes
     become_user: odoo
-    command: cp -a ~/tmp/odoo-enterprise/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
+    command: cp -a ~/tmp/odoo-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
     when: item.value.enterprise
 
   - name: Copia a versão trustcode enterprise
     become: yes
     become_user: odoo
-    command: cp -a ~/tmp/trustcode-enterprise/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
+    command: cp -a ~/tmp/trustcode-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
 
   - name: Copia a versão odoo reports
     become: yes
     become_user: odoo
-    command: cp -a ~/tmp/odoo-reports/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
+    command: cp -a ~/tmp/odoo-reports/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
