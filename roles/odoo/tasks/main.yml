@@ -128,7 +128,7 @@
     become: yes
     become_user: root
     command: "certbot certonly --nginx -n --expand --agree-tos --email secure@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }}"
-    when: inventory_hostname in groups['producao']
+    when: inventory_hostname in groups['producao'] and inventory_hostname not in groups['ssloff']
     with_dict: "{{ databases }}"
 
   - name: Nginx | Criar configuracao
@@ -139,13 +139,13 @@
       group: root
       mode: 0755
     with_dict: "{{ databases }}"
-    when: inventory_hostname in groups['producao']
+    when: inventory_hostname in groups['producao'] and inventory_hostname not in groups['ssloff']
 
   - name: Nginx | Assegurar que Nginx esta instalado (package)
     service:
       name: nginx
       state: restarted
-    when: inventory_hostname in groups['producao']
+    when: inventory_hostname in groups['producao'] and inventory_hostname not in groups['ssloff']
 
   - name: Criando a pasta ssh
     become: yes
