@@ -6,19 +6,13 @@ upstream odoochat{{item.key}} {
     server 127.0.0.1:{{ item.value.docker.porta_polling }};
 }
 
-# http -> https
 server {
     listen 80;
-    server_name {{ ','.join(item.value.domain) }};
-    rewrite ^(.*) https://$host$1 permanent;
-}
-
-server {
-    listen 443;
     server_name {{ ','.join(item.value.domain) }};
     proxy_read_timeout 720s;
     proxy_connect_timeout 720s;
     proxy_send_timeout 720s;
+    client_max_body_size 20M;
 
     # Add Headers for odoo proxy mode
     proxy_set_header X-Forwarded-Host $host;

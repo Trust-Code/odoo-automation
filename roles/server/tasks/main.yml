@@ -18,7 +18,14 @@
   iptables:
     chain: INPUT
     protocol: tcp
-    destination_port: 8090
+    destination_port: 80
+    jump: ACCEPT
+
+- name: Permite https no firewall
+  iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: 443
     jump: ACCEPT
 
 - name: Bloqueia o restante das conexoes
