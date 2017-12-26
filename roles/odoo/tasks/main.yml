@@ -145,7 +145,7 @@
     service:
       name: nginx
       state: restarted
-    when: inventory_hostname in groups['producao'] and inventory_hostname not in groups['ssloff']
+    when: inventory_hostname in groups['producao']
 
   - name: Criando a pasta ssh
     become: yes
