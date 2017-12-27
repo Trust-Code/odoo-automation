@@ -1,4 +1,8 @@
 ---
+  - apt:
+      name: python-pip
+      state: present
+
   - name: Install correct version docker-py to avoid problems
     pip: name=docker-py version=1.9.0
 
@@ -78,6 +82,7 @@
         PG_PASSWORD: "{{ pg_password }}"
         PORT: "{{ item.value.porta }}"
         LONGPOLLING_PORT: "{{ item.value.porta_polling }}"
+        WORKERS: "{{ workers }}"
     with_dict: "{{ docker }}"
 
   - name: Modifica a senha padrão
