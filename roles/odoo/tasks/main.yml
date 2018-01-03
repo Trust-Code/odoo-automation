@@ -44,6 +44,12 @@
       state: absent
     with_items: "{{ databases }}"
 
+  - name: Cria a pasta dados
+    become: yes
+    become_user: root
+    file: path=/opt/dados/{{ item.key }} state=directory mode=0755 owner=odoo
+    with_dict: "{{ docker }}"
+
   - name: Inicia o docker odoo e inicializa a base de dados
     become: yes
     become_user: odoo
