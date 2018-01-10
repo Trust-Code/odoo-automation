@@ -1,0 +1,36 @@
+---
+- name: Deploy the infrastructure to execute and restore backups
+  hosts: desenvolvimento,producao
+  become: yes
+  gather_facts: no
+  pre_tasks:
+    - name: 'Install python2'
+      raw: apt-get -y install python-simplejson
+  tasks:
+    - copy:
+        src: restore_backup_s3.py
+        dest: /opt/restore_backup_s3.py
+        owner: odoo
+        group: odoo
+        mode: 0644
+    - template:
+        src: templates/aws.credentials
+        dest: ~/.aws/credentials
+        owner: odoo
+        group: odoo
+        mode: 0644
+    - template:
+        src: templates/aws.config
+        dest: ~/.aws/config
+        owner: odoo
+        group: odoo
+        mode: 0644
+    - pip:
+      name: awscli
+
+    # - copy:
+    #     src: /home/danimar/Downloads/trustcode_v11_2018-01-09_15-47-09.zip
+    #     dest: /opt/trustcode_v11_backup.zip
+    #     owner: odoo
+    #     group: odoo
+    #     mode: 0644
