@@ -26,7 +26,7 @@
         group: odoo
         mode: 0644
     - pip:
-      name: awscli
+        name: awscli
 
     # - copy:
     #     src: /home/danimar/Downloads/trustcode_v11_2018-01-09_15-47-09.zip
