@@ -11,13 +11,15 @@ Options:
   -f FILE        name of the '.zip' archive
   --bucket NAME  name of the amazon bucket (default dbname_bkp)
 """
-from docopt import docopt
-import subprocess
-from psycopg2 import connect
 import os
+import tempfile
+from docopt import docopt
+from psycopg2 import connect
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from boto.s3.connection import S3Connection
 from zipfile import ZipFile
+
+from common import exec_pg_command
 
 
 def check_args(args):
@@ -31,32 +33,16 @@ def _databases_to_execute(args):
         dbname='postgres', user=args['<dbuser>'],
         host='localhost', password=args['<dbpasswd>'])
     cursor = connection.cursor()
-    cursor.execute('SELECT datname FROM pg_database WHERE datistemplate = false')
+    cursor.execute(
+        'SELECT datname FROM pg_database WHERE datistemplate = false')
     databases = cursor.fetchall()
-
-
-def exec_pg_environ():
-    env = os.environ.copy()
-    env['PGHOST'] = 'localhost'
-    env['PGPORT'] = '5432'
-    env['PGUSER'] = args['<dbuser>']
-    env['PGPASSWORD'] = args['<dbpasswd>']
-    return env
-
-
-def exec_pg_command(name, *args):
-    prog = find_pg_tool(name)
-    env = exec_pg_environ()
-    with open(os.devnull) as dn:
-        args2 = (prog,) + args
-        rc = subprocess.call(args2, env=env, stdout=dn, stderr=subprocess.STDOUT)
-        if rc:
-            raise Exception('Postgres subprocess %s error %s' % (args2, rc))
+    return [a[0] for a in databases]
 
 
 def run_backup(args):
     databases = _databases_to_execute(args)
 
+    dump_dir = tempfile.mkdtemp()
     cmd = ['pg_dump', '--no-owner']
     cmd.insert(-1, '--file=' + os.path.join(dump_dir, 'dump.sql'))
 
