@@ -70,18 +70,18 @@ def find_pg_tool(name):
         raise Exception('Command `%s` not found.' % name)
 
 
-def exec_pg_environ(*args):
+def exec_pg_environ(**kwargs):
     env = os.environ.copy()
     env['PGHOST'] = 'localhost'
     env['PGPORT'] = '5432'
-    env['PGUSER'] = args['<dbuser>']
-    env['PGPASSWORD'] = args['<dbpasswd>']
+    env['PGUSER'] = kwargs['<dbuser>']
+    env['PGPASSWORD'] = kwargs['<dbpasswd>']
     return env
 
 
-def exec_pg_command(name, *args):
+def exec_pg_command(name, *args, **kwargs):
     prog = find_pg_tool(name)
-    env = exec_pg_environ(args)
+    env = exec_pg_environ(**kwargs)
     with open(os.devnull) as dn:
         args2 = (prog,) + args
         rc = subprocess.call(args2, env=env, stdout=dn,

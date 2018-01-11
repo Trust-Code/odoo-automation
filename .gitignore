@@ -4,3 +4,4 @@ group_vars
 *.retry
 inventory
 automation-vars
+__pycache__

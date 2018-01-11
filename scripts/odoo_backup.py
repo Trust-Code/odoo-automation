@@ -5,7 +5,7 @@ Options:
   -h --help
   -k KEY         acess key to amazon server
   -s SKEY        secret key to amazon server
-  -d --database  database to execute backup
+  -d --database DATABASE  database to execute backup
   -a --all       execut
   --upload       upload files do S3
   -f FILE        name of the '.zip' archive
@@ -15,8 +15,6 @@ import os
 import tempfile
 from docopt import docopt
 from psycopg2 import connect
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from boto.s3.connection import S3Connection
 from zipfile import ZipFile
 
 from common import exec_pg_command
@@ -29,6 +27,8 @@ def check_args(args):
 
 
 def _databases_to_execute(args):
+    if args['--database']:
+        return [args['--database']]
     connection = connect(
         dbname='postgres', user=args['<dbuser>'],
         host='localhost', password=args['<dbpasswd>'])
@@ -42,12 +42,13 @@ def _databases_to_execute(args):
 def run_backup(args):
     databases = _databases_to_execute(args)
 
-    dump_dir = tempfile.mkdtemp()
-    cmd = ['pg_dump', '--no-owner']
-    cmd.insert(-1, '--file=' + os.path.join(dump_dir, 'dump.sql'))
-
     for database in databases:
-        exec_pg_command(*cmd)
+        if database == 'postgres':
+            continue
+        dump_dir = tempfile.mkdtemp()
+        cmd = [database, '--no-owner']
+        cmd.insert(-1, '--file=' + os.path.join(dump_dir, 'dump.sql'))
+        exec_pg_command('pg_dump', *cmd, **args)
 
 
 if __name__ == '__main__':
