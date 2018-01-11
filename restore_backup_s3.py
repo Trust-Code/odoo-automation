@@ -103,14 +103,15 @@ def get_db_from_amazon(dbname, bucket, access_key, secret_key):
     sorted_list = sorted([(k.last_modified, k) for k in bucket],
                          cmp=lambda x, y: cmp(x[0], y[0]))
     key_to_download = False
-    for index in range(-1, -len(sorted_list), -1):
+    for index in range(-1, -(len(sorted_list) + 1), -1):
         if '.zip' in str(sorted_list[index][1]):
             key_to_download = sorted_list[index][1]
 
     if key_to_download:
         key_to_download.get_contents_to_filename(dbname + '.zip')
     else:
-        raise Exception('Arquivo nao encontrado')
+        raise Exception('Arquivo nao encontrado.\
+        \nVerifique se a acess  key e a secret key fornecidas estao corretas!')
 
 
 def create_new_db(dbname, dbuser, dbpasswd):
@@ -166,25 +167,22 @@ def restore_database(
         bucket = '%s_bkp_pelican' % dbname
 
     if download:
-        try:
-            if not old:
+        if not old:
+            try:
                 get_filestore_from_amazon(bucket)
-            get_db_from_amazon(dbname, bucket, access_key, secret_key)
-            path_to_files = ''
-        except Exception as e:
-            print (e)
-            exit("Download from amazon failed!\
+            except Exception:
+                exit("Download from amazon failed!\
                     \n Do you have 'awscli' installed and configured?\
                     \n 'pip install awscli'\n 'aws configure'")
+        get_db_from_amazon(dbname, bucket, access_key, secret_key)
+        path_to_files = ''
 
     if not zipname:
         zipname = dbname + '.zip'
 
-    files = []
     if zipped or download:
         try:
             archive = ZipFile(path_to_files + zipname)
-            files = archive.namelist()
             archive.extractall()
         except Exception as e:
             print (e)
@@ -208,15 +206,11 @@ def restore_database(
 
         if zipped or download:
             os.remove(path_to_files + dbname + '.zip')
-            for name in files:
-                os.remove(name)
-        else:
-            os.remove(path_to_files + 'dump.sql')
-            os.remove(path_to_files + 'manifest.json')
+            path_to_files = ''
 
-        files = os.listdir(path_to_files + 'filestore')
-        for name in files:
-            os.remove(name)
+        os.remove(path_to_files + 'dump.sql')
+        os.remove(path_to_files + 'manifest.json')
+        os.rmdir(path_to_files + 'filestore')
 
     if base_teste:
         change_to_homologacao(dbname, dbuser, dbpasswd)

@@ -3,6 +3,10 @@
   hosts: desenvolvimento,producao
   become: yes
   gather_facts: no
+  vars_prompt:
+    - name: "restore_db"
+      prompt: "Digite a database a ser restaurada: "
+      private: no
   pre_tasks:
     - name: 'Install python2'
       raw: apt-get -y install python-simplejson
@@ -13,20 +17,25 @@
         owner: odoo
         group: odoo
         mode: 0644
-    - template:
-        src: templates/aws.credentials
-        dest: ~/.aws/credentials
-        owner: odoo
-        group: odoo
-        mode: 0644
-    - template:
-        src: templates/aws.config
-        dest: ~/.aws/config
-        owner: odoo
-        group: odoo
-        mode: 0644
-    - pip:
-        name: awscli
+    # - template:
+    #     src: templates/aws.credentials
+    #     dest: ~/.aws/credentials
+    #     owner: odoo
+    #     group: odoo
+    #     mode: 0644
+    # - template:
+    #     src: templates/aws.config
+    #     dest: ~/.aws/config
+    #     owner: odoo
+    #     group: odoo
+    #     mode: 0644
+    # - pip:
+    #     name: awscli
+    #           docopt
+    
+    # - name: Restore database
+    #   raw: python /opt/restore_backup_s3.py {{ restore_db }} {{ pg_user }} {{ pg_password }} -d -o -e -a {{ aws_access_key_id }} -s {{ aws_secret_access_key }}
+
 
     # - copy:
     #     src: /home/danimar/Downloads/trustcode_v11_2018-01-09_15-47-09.zip
