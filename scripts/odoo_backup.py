@@ -15,9 +15,8 @@ import os
 import tempfile
 from docopt import docopt
 from psycopg2 import connect
-from zipfile import ZipFile
 
-from common import exec_pg_command
+from common import exec_pg_command, zip_dir
 
 
 def check_args(args):
@@ -47,8 +46,12 @@ def run_backup(args):
             continue
         dump_dir = tempfile.mkdtemp()
         cmd = [database, '--no-owner']
-        cmd.insert(-1, '--file=' + os.path.join(dump_dir, 'dump.sql'))
+        dump_path = os.path.join(dump_dir, 'dump.sql')
+        cmd.insert(-1, '--file=' + dump_path)
         exec_pg_command('pg_dump', *cmd, **args)
+        t = tempfile.NamedTemporaryFile(delete=False)
+        zip_dir(dump_dir, t, include_dir=False)
+        t.close()
 
 
 if __name__ == '__main__':

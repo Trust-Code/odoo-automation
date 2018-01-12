@@ -2,6 +2,7 @@ import os
 import subprocess
 
 import sys
+import zipfile
 from os import access, defpath, pathsep, environ, F_OK, X_OK
 from os.path import exists, split, join
 
@@ -88,3 +89,21 @@ def exec_pg_command(name, *args, **kwargs):
                              stderr=subprocess.STDOUT)
         if rc:
             raise Exception('Postgres subprocess %s error %s' % (args2, rc))
+
+
+def zip_dir(path, stream, include_dir=True):
+    path = os.path.normpath(path)
+    len_prefix = len(os.path.dirname(path)) if include_dir else len(path)
+    if len_prefix:
+        len_prefix += 1
+
+    with zipfile.ZipFile(stream, 'w', compression=zipfile.ZIP_DEFLATED,
+                         allowZip64=True) as zipf:
+        for dirpath, dirnames, filenames in os.walk(path):
+            for fname in filenames:
+                bname, ext = os.path.splitext(fname)
+                ext = ext or bname
+                if ext not in ['.pyc', '.pyo', '.swp', '.DS_Store']:
+                    path = os.path.normpath(os.path.join(dirpath, fname))
+                    if os.path.isfile(path):
+                        zipf.write(path, path[len_prefix:])
