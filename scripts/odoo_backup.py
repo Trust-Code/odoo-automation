@@ -12,9 +12,11 @@ Options:
   --bucket NAME  name of the amazon bucket (default dbname_bkp)
 """
 import os
+import time
 import tempfile
 from docopt import docopt
 from psycopg2 import connect
+from boto3 import client
 
 from common import exec_pg_command, zip_dir
 
@@ -52,6 +54,14 @@ def run_backup(args):
         t = tempfile.NamedTemporaryFile(delete=False)
         zip_dir(dump_dir, t, include_dir=False)
         t.close()
+
+        name_to_store = '%s/%s_%s.zip' % (
+            database, database, time.strftime('%d_%m_%Y'))
+        conexao = client('s3', aws_access_key_id=args['-s'],
+                         aws_secret_access_key=args['-k'])
+        bucket_name = '11.0'
+        conexao.create_bucket(Bucket=bucket_name)
+        conexao.upload_file(t.name, bucket_name, name_to_store)
 
 
 if __name__ == '__main__':
