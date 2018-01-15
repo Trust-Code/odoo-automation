@@ -1,5 +1,5 @@
-"""Usage: restore_backup_s3.py (<dbname> <dbuser> <dbpasswd>) [options]
-          restore_backup_s3.py -h | --help
+"""Usage: odoo_restore.py (<dbname> <dbuser> <dbpasswd>) [options]
+          odoo_restore.py -h | --help
 
 Options:
   -h --help
@@ -13,7 +13,7 @@ Options:
   -p PATH        path to files, if they are already downloaded
   -f FILE        name of the '.zip' archive
   --bucket NAME  name of the amazon bucket (default dbname_bkp_pelikan)
-  -o             download from old backups (filestore + dump in a sigle .zip)
+  -o             use it if filestore and dump in a sigle .zip
 
 """
 from docopt import docopt
@@ -23,16 +23,13 @@ import os
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from boto.s3.connection import S3Connection
 from zipfile import ZipFile
+from common import exec_pg_command
 
 
 def check_args(args):
     if (not args['<dbname>'] or not ['<dbuser>'] or not
             ['<dbpasswd>']):
         exit("(<dbname> <dbuser> <dbpasswd>) are required!\
-                \n Use '-h' for help")
-
-    if args['-o'] and not args['-d']:
-        exit("Invalid parameters, '-o' cannot be True if '-d' is False\
                 \n Use '-h' for help")
 
     if args['-d']:
@@ -50,31 +47,12 @@ and secret key to the amazon server, using '-a' and '-s'\
         if not os.path.exists(args['-p']):
             exit("Path to file doesn't exist!")
 
-    if args['-f'] and (args['-f'][-4:] != '/'):
+    if args['-f'] and (args['-f'][-4:] != '.zip'):
         exit("Name of the . zip file must end with '.zip'")
 
 
-def get_last_filestore(string):
-    files_list = string.split('/\n')
-    files_list = [i.strip('PRE ') for i in files_list]
-    dates = []
-    for item in files_list:
-        try:
-            dates.append(int(item[0:8]))
-        except ValueError:
-            dates.append(0)
-    latest = max(dates)
-    return files_list[dates.index(latest)]
-
-
 def get_filestore_from_amazon(bucket):
-    path = 's3://' + bucket + '/filestores/'
-    filestore_list = subprocess.check_output([
-        'aws', 's3', 'ls', path])
-
-    date = get_last_filestore(filestore_list)
-
-    path = path + date + '/'
+    path = 's3://' + bucket + '/filestore/'
 
     subprocess.call('aws s3 cp ' + path + ' . --recursive', shell=True)
 
@@ -155,84 +133,75 @@ WHERE tipo_ambiente_nfse=1')
     cur.execute('delete from ir_mail_server')
 
 
-def restore_database(
-        dbname, dbuser, dbpasswd, access_key, secret_key, local=False,
-        remove=False, base_teste=False, download=False, old=False,
-        path_to_files=False, zipped=False, zipname=False, bucket=False):
+def restore_database(args):
+    path_to_dump = args['-p']
+    path_to_filestore = args['-p']
 
-    if not path_to_files:
-        path_to_files = ''
+    if not args['-p']:
+        path_to_dump = ''
+        path_to_filestore = ''
 
-    if not bucket:
-        bucket = '%s_bkp_pelican' % dbname
+    if not args['--bucket']:
+        args['--bucket'] = '%s_bkp_pelican' % args['<dbname>']
 
-    if download:
-        if not old:
+    if args['-d']:
+        if not args['-o']:
             try:
-                get_filestore_from_amazon(bucket)
+                get_filestore_from_amazon(args['--bucket'])
             except Exception:
                 exit("Download from amazon failed!\
                     \n Do you have 'awscli' installed and configured?\
                     \n 'pip install awscli'\n 'aws configure'")
-        get_db_from_amazon(dbname, bucket, access_key, secret_key)
-        path_to_files = ''
+        get_db_from_amazon(
+            args['<dbname>'], args['--bucket'], args['-a'], args['-s'])
+        args['-p'] = ''
 
-    if not zipname:
-        zipname = dbname + '.zip'
+    if not args['-f']:
+        args['-f'] = args['<dbname>'] + '.zip'
 
-    if zipped or download:
+    if args['--zip'] or args['-d']:
         try:
-            archive = ZipFile(path_to_files + zipname)
+            archive = ZipFile(args['-p'] + args['-f'])
             archive.extractall()
+            if not args['-o']:
+                path_to_filestore = args['-p']
+            else:
+                path_to_filestore = ''
+            path_to_dump = ''
+
         except Exception as e:
             print (e)
             raise Exception('.zip file not found!')
 
-    create_new_db(dbname, dbuser, dbpasswd)
+    create_new_db(args['<dbname>'], args['<dbuser>'], args['<dbpasswd>'])
 
-    if zipped or download:
-        subprocess.call('cat dump.sql | psql -h localhost -U '
-                        + dbuser + ' ' + dbname, shell=True)
-    else:
-        subprocess.call('cat ' + path_to_files + 'dump.sql | psql -h localhost\
-             -U ' + dbuser + ' ' + dbname, shell=True)
+    pg_cmd = 'psql'
+    pg_args = [
+        '-q',
+        '-f',
+        os.path.join(path_to_dump, 'dump.sql'),
+        '--dbname=' + args['<dbname>']]
 
-    if old:
-        move_filestore(dbname, local, '')
-    else:
-        move_filestore(dbname, local, path_to_files)
+    exec_pg_command(pg_cmd, *pg_args, **args)
 
-    if remove:
+    move_filestore(args['<dbname>'], args['-l'], path_to_filestore)
 
-        if zipped or download:
-            os.remove(path_to_files + dbname + '.zip')
-            path_to_files = ''
+    if args['--exclude']:
 
-        os.remove(path_to_files + 'dump.sql')
-        os.remove(path_to_files + 'manifest.json')
-        os.rmdir(path_to_files + 'filestore')
+        if args['--zip'] or args['-d']:
+            os.remove(args['-p'] + args['-f'])
 
-    if base_teste:
-        change_to_homologacao(dbname, dbuser, dbpasswd)
+        os.remove(path_to_dump + 'dump.sql')
+        os.remove(path_to_dump + 'manifest.json')
+        os.rmdir(os.path.join(path_to_filestore, 'filestore'))
+
+    if args['-t']:
+        change_to_homologacao(
+            args['<dbname>'], args['<dbuser>'], args['<dbpasswd>'])
 
 
 if __name__ == '__main__':
     args = docopt(__doc__)
     check_args(args)
 
-    restore_database(
-        args['<dbname>'],
-        args['<dbuser>'],
-        args['<dbpasswd>'],
-        args['-a'],
-        args['-s'],
-        args['-l'],
-        args['--exclude'],
-        args['-t'],
-        args['-d'],
-        args['-o'],
-        args['-p'],
-        args['--zip'],
-        args['-f'],
-        args['--bucket']
-    )
+    restore_database(args)
