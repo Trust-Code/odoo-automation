@@ -138,7 +138,7 @@
   - name: Certbot - Cria certificados
     become: yes
     become_user: root
-    command: "certbot certonly --nginx -n --expand --agree-tos --email secure@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }}"
+    command: "certbot certonly --authenticator standalone --installer nginx -n --expand --agree-tos --email secure@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }} --pre-hook 'service nginx stop' --post-hook 'service nginx start'"
     when: inventory_hostname in groups['producao'] and inventory_hostname not in groups['ssloff']
     with_dict: "{{ databases }}"
 
