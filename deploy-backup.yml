@@ -8,13 +8,13 @@
       raw: apt-get -y install python-simplejson
   tasks:
     - copy:
-        src: scripts/restore_backup_s3.py
-        dest: /opt/backups/restore_backup_s3.py
+        src: scripts/odoo_restore.py
+        dest: /opt/backups/odoo_restore.py
         owner: odoo
         group: odoo
         mode: 0644
     - copy:
-        src: scripts/restore_backup_s3.py
+        src: scripts/odoo_restore.py
         dest: /opt/backups/odoo-backup.py
         owner: odoo
         group: odoo

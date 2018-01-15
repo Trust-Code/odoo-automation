@@ -2,6 +2,7 @@ host_vars
 group_vars
 *.pem
 *.retry
+*.pyc
 inventory
 automation-vars
 __pycache__
