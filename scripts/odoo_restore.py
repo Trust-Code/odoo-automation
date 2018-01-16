@@ -3,8 +3,8 @@
 
 Options:
   -h --help
-  -a KEY         acess key to amazon server
-  -s SKEY        secret key to amazon server
+  -s KEY         acess key to amazon server
+  -k SKEY        secret key to amazon server
   -d             download files from s3
   -l             local backup (change the directory of 'filestore')
   -z --zip       use it if dump.sql and manifest.json are inside a .zip file
@@ -36,7 +36,7 @@ def check_args(args):
         if (args['-p'] or args['-f']):
             exit("Invalid parameters, you can't use -p or -f when you're\
 downloading the files \n Use '-h' for help")
-        if not (args['-a'] and args['-s']):
+        if not (args['-s'] and args['-k']):
             exit("To download the files you need to provide the acess key\
 and secret key to the amazon server, using '-a' and '-s'\
 \n Use '-h' for help")
@@ -51,10 +51,13 @@ and secret key to the amazon server, using '-a' and '-s'\
         exit("Name of the . zip file must end with '.zip'")
 
 
-def get_filestore_from_amazon(bucket):
+def get_filestore_from_amazon(bucket, args):
     path = 's3://' + bucket + '/filestore/'
-
-    subprocess.call('aws s3 cp ' + path + ' . --recursive', shell=True)
+    env = os.environ.copy()
+    env['AWS_ACCESS_KEY_ID'] = args['-s']
+    env['AWS_SECRET_ACCESS_KEY'] = args['-k']
+    subprocess.call(
+        'aws s3 cp ' + path + ' . --recursive', shell=True, env=env)
 
 
 def move_filestore(dbname, local, path_to_files):
@@ -79,7 +82,7 @@ def get_db_from_amazon(dbname, bucket, access_key, secret_key):
     conexao = S3Connection(access_key, secret_key)
     bucket = conexao.lookup(bucket)
     sorted_list = sorted([(k.last_modified, k) for k in bucket],
-                         cmp=lambda x, y: cmp(x[0], y[0]))
+                         key=lambda x: x[0].last_modified)
     key_to_download = False
     for index in range(-1, -(len(sorted_list) + 1), -1):
         if '.zip' in str(sorted_list[index][1]):
@@ -147,13 +150,13 @@ def restore_database(args):
     if args['-d']:
         if not args['-o']:
             try:
-                get_filestore_from_amazon(args['--bucket'])
+                get_filestore_from_amazon(args['--bucket'], args)
             except Exception:
                 exit("Download from amazon failed!\
                     \n Do you have 'awscli' installed and configured?\
                     \n 'pip install awscli'\n 'aws configure'")
         get_db_from_amazon(
-            args['<dbname>'], args['--bucket'], args['-a'], args['-s'])
+            args['<dbname>'], args['--bucket'], args['-s'], args['-k'])
         args['-p'] = ''
 
     if not args['-f']:
