@@ -41,19 +41,19 @@
 
 - name: Postgres - Adjust configuration parameters
   blockinfile:
-    path: /etc/postgresql/9.5/main/postgresql.conf
+    path: /etc/postgresql/{{ pg_version }}/main/postgresql.conf
     marker: "# {mark} Tunning postgres configuration"
     block: |
-        max_connections = 200
-        shared_buffers = 1GB
-        effective_cache_size = 3GB
-        work_mem = 5242kB
-        maintenance_work_mem = 256MB
-        min_wal_size = 1GB
-        max_wal_size = 2GB
-        checkpoint_completion_target = 0.7
-        wal_buffers = 16MB
-        default_statistics_target = 100
+        max_connections = {{ max_connections }}
+        shared_buffers = {{ shared_buffers }}
+        effective_cache_size = {{ effective_cache_size }}
+        work_mem = {{ work_mem }}
+        maintenance_work_mem = {{ maintenance_work_mem }}
+        min_wal_size = {{ min_wal_size }}
+        max_wal_size = {{ max_wal_size }}
+        checkpoint_completion_target = {{ checkpoint_completion_target }}
+        wal_buffers = {{ wal_buffers }}
+        default_statistics_target = {{ default_statistics_target }}
 
 - name: Postgres | Restart service to get new configuration
   service:
