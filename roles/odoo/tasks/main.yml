@@ -130,11 +130,6 @@
     with_dict: "{{ databases }}"
     when: inventory_hostname in groups['producao']
 
-  - set_fact:
-      tmp_item: '{{ item.value.domain }}'
-    with_dict: "{{ databases }}"
-    register: tmp_list
-
   - name: Certbot - Cria certificados
     become: yes
     become_user: root
