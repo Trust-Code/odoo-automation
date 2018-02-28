@@ -1,11 +1,4 @@
 ---
-  - apt:
-      name: python-pip
-      state: present
-
-  - name: Install correct version docker-py to avoid problems
-    pip: name=docker-py version=1.9.0
-
   - name: Check the odoo postgres user has the same password
     become: yes
     become_user: postgres
@@ -50,10 +43,106 @@
     file: path=/opt/dados/{{ item.key }} state=directory mode=0755 owner=odoo
     with_dict: "{{ docker }}"
 
+  - name: Deleta pasta odoo enterprise
+    become: yes
+    become_user: odoo
+    file: path=~/tmp/odoo-enterprise state=directory state=absent
+
+  - name: Deleta pasta trustcode enterprise
+    become: yes
+    become_user: odoo
+    file: path=~/tmp/trustcode-enterprise state=directory state=absent
+
+  - name: Deleta pasta odoo-reports
+    become: yes
+    become_user: odoo
+    file: path=~/tmp/odoo-reports state=directory state=absent
+
+  - name: Realizando o download da versão odoo enterprise
+    become: yes
+    become_user: odoo
+    git:
+      accept_hostkey: True
+      repo: git@github.com:odoo/enterprise.git
+      dest: ~/tmp/odoo-enterprise/{{ item.value.versao }}/
+      version: "{{ item.value.versao }}"
+      key_file: /home/odoo/.ssh/id_rsa
+    with_dict: "{{ docker }}"
+    when: item.value.enterprise and item.value.versao in (10.0, 11.0)
+
+  - name: Realizando o download da versão trustcode enterprise
+    become: yes
+    become_user: odoo
+    git:
+      accept_hostkey: True
+      repo: git@bitbucket.org:trustcode/trustcode-enterprise.git
+      dest: ~/tmp/trustcode-enterprise/{{ item.value.versao }}/
+      version: "{{ item.value.versao }}"
+      key_file: /home/odoo/.ssh/id_rsa
+    with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, 11.0)
+
+  - name: Realizando o download da versão odoo reports
+    become: yes
+    become_user: odoo
+    git:
+      accept_hostkey: True
+      repo: git@bitbucket.org:trustcode/odoo-reports.git
+      dest: ~/tmp/odoo-reports/{{ item.value.versao }}/
+      version: "{{ item.value.versao }}"
+      key_file: /home/odoo/.ssh/id_rsa
+    with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, 11.0)
+
+  - name: Deleta pasta odoo enterprise
+    become: yes
+    become_user: odoo
+    file: path=~/tmp/odoo-enterprise/{{ item.value.versao }}/.git state=directory state=absent
+    with_dict: "{{ docker }}"
+
+  - name: Deleta pasta trustcode enterprise
+    become: yes
+    become_user: odoo
+    file: path=~/tmp/trustcode-enterprise/{{ item.value.versao }}/.git state=directory state=absent
+    with_dict: "{{ docker }}"
+
+  - name: Deleta pasta odoo-reports
+    become: yes
+    become_user: odoo
+    file: path=~/tmp/odoo-reports/{{ item.value.versao }}/.git state=directory state=absent
+    with_dict: "{{ docker }}"
+
+  - name: Cria a pasta dados
+    become: yes
+    become_user: root
+    file: path=/opt/dados/{{ item.key }}/addons/{{ item.value.versao }} state=directory mode=0755 owner=odoo
+    with_dict: "{{ docker }}"
+
+  - name: Copia a versão odoo enterprise
+    become: yes
+    become_user: odoo
+    command: cp -a ~/tmp/odoo-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
+    with_dict: "{{ docker }}"
+    when: item.value.enterprise and item.value.versao in (10.0, 11.0)
+
+  - name: Copia a versão trustcode enterprise
+    become: yes
+    become_user: odoo
+    command: cp -a ~/tmp/trustcode-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
+    with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, 11.0)
+
+  - name: Copia a versão odoo reports
+    become: yes
+    become_user: odoo
+    command: cp -a ~/tmp/odoo-reports/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
+    with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, 11.0)
+
   - name: Inicia o docker odoo e inicializa a base de dados
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -i l10n_br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: dbstatus.changed
     with_dict: "{{ databases }}"
 
@@ -63,12 +152,6 @@
     command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: module_update != "" and not dbstatus.changed
     with_dict: "{{ databases }}"
-
-  - name: Cria a pasta dados
-    become: yes
-    become_user: root
-    file: path=/opt/dados/{{ item.key }}/addons/{{ item.value.versao }} state=directory mode=0755 owner=odoo
-    with_dict: "{{ docker }}"
 
   - name: Recria o docker odoo
     become: yes
@@ -152,109 +235,3 @@
       name: nginx
       state: restarted
     when: inventory_hostname in groups['producao']
-
-  - name: Criando a pasta ssh
-    become: yes
-    become_user: odoo
-    file: path=/home/odoo/.ssh state=directory
-
-  - name: Create the SSH public key file
-    become: yes
-    become_user: odoo
-    copy:
-      src=~/.ssh/id_rsa.pub
-      dest=/home/odoo/.ssh/id_rsa.pub
-      mode=0644
-  - name: Create the SSH private key file
-    become: yes
-    become_user: odoo
-    copy:
-      src=~/.ssh/id_rsa
-      dest=/home/odoo/.ssh/id_rsa
-      mode=0600
-
-  - name: Deleta pasta odoo enterprise
-    become: yes
-    become_user: odoo
-    file: path=~/tmp/odoo-enterprise state=directory state=absent
-
-  - name: Deleta pasta trustcode enterprise
-    become: yes
-    become_user: odoo
-    file: path=~/tmp/trustcode-enterprise state=directory state=absent
-
-  - name: Deleta pasta odoo-reports
-    become: yes
-    become_user: odoo
-    file: path=~/tmp/odoo-reports state=directory state=absent
-
-  - name: Realizando o download da versão odoo enterprise
-    become: yes
-    become_user: odoo
-    git:
-      accept_hostkey: True
-      repo: git@github.com:odoo/enterprise.git
-      dest: ~/tmp/odoo-enterprise/{{ item.value.versao }}/
-      version: "{{ item.value.versao }}"
-      key_file: /home/odoo/.ssh/id_rsa
-    with_dict: "{{ docker }}"
-    when: item.value.enterprise
-
-  - name: Realizando o download da versão trustcode enterprise
-    become: yes
-    become_user: odoo
-    git:
-      accept_hostkey: True
-      repo: git@bitbucket.org:trustcode/trustcode-enterprise.git
-      dest: ~/tmp/trustcode-enterprise/{{ item.value.versao }}/
-      version: "{{ item.value.versao }}"
-      key_file: /home/odoo/.ssh/id_rsa
-    with_dict: "{{ docker }}"
-
-  - name: Realizando o download da versão odoo reports
-    become: yes
-    become_user: odoo
-    git:
-      accept_hostkey: True
-      repo: git@bitbucket.org:trustcode/odoo-reports.git
-      dest: ~/tmp/odoo-reports/{{ item.value.versao }}/
-      version: "{{ item.value.versao }}"
-      key_file: /home/odoo/.ssh/id_rsa
-    with_dict: "{{ docker }}"
-
-  - name: Deleta pasta odoo enterprise
-    become: yes
-    become_user: odoo
-    file: path=~/tmp/odoo-enterprise/{{ item.value.versao }}/.git state=directory state=absent
-    with_dict: "{{ docker }}"
-
-  - name: Deleta pasta trustcode enterprise
-    become: yes
-    become_user: odoo
-    file: path=~/tmp/trustcode-enterprise/{{ item.value.versao }}/.git state=directory state=absent
-    with_dict: "{{ docker }}"
-
-  - name: Deleta pasta odoo-reports
-    become: yes
-    become_user: odoo
-    file: path=~/tmp/odoo-reports/{{ item.value.versao }}/.git state=directory state=absent
-    with_dict: "{{ docker }}"
-
-  - name: Copia a versão odoo enterprise
-    become: yes
-    become_user: odoo
-    command: cp -a ~/tmp/odoo-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
-    with_dict: "{{ docker }}"
-    when: item.value.enterprise
-
-  - name: Copia a versão trustcode enterprise
-    become: yes
-    become_user: odoo
-    command: cp -a ~/tmp/trustcode-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
-    with_dict: "{{ docker }}"
-
-  - name: Copia a versão odoo reports
-    become: yes
-    become_user: odoo
-    command: cp -a ~/tmp/odoo-reports/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
-    with_dict: "{{ docker }}"

@@ -9,10 +9,3 @@
 
   roles:
     - odoo
-
-
-  tasks:
-  - set_fact:
-      tmp_item: '{{ item.value.domain }}'
-    with_dict: "{{ databases }}"
-    register: tmp_list
