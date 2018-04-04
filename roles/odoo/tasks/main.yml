@@ -142,7 +142,7 @@
   - name: Inicia o docker odoo e inicializa a base de dados
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -i l10n_br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: dbstatus.changed
     with_dict: "{{ databases }}"
 

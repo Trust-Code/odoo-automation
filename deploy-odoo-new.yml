@@ -1,0 +1,11 @@
+---
+- name: Inicializa uma nova base de dados - Utilizar somente quando o docker já existir
+  hosts: desenvolvimento,producao
+  become: yes
+  vars_prompt:
+    - name: "module_update"
+      prompt: "Digite o modulo a atualizar"
+      private: no
+
+  roles:
+    - odoo-new

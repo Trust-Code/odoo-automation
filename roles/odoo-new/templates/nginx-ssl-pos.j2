@@ -6,8 +6,15 @@ upstream odoochat{{item.key}} {
     server 127.0.0.1:{{ item.value.docker.porta_polling }};
 }
 
+# http -> https
 server {
     listen 80;
+    server_name {{ ','.join(item.value.domain) }};
+    rewrite ^(.*) https://$host$1 permanent;
+}
+
+server {
+    listen 443;
     server_name {{ ','.join(item.value.domain) }};
     proxy_read_timeout 720s;
     proxy_connect_timeout 720s;
@@ -19,6 +26,12 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Real-IP $remote_addr;
+
+    # SSL parameters
+    ssl on;
+    ssl_certificate /etc/letsencrypt/live/{{ ','.join(item.value.domain) }}/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/{{ ','.join(item.value.domain) }}/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
 
     # log
     access_log /var/log/nginx/odoo.access.log;

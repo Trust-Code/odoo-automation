@@ -1,0 +1,11 @@
+---
+- name: Cleanup space in servers
+  hosts: desenvolvimento,producao
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Limpando volumes do docker
+      raw: docker volume rm $(docker volume ls -qf dangling=true)
+
+    - name: Limpando imagens do docker
+      raw: docker rmi $(docker images --filter "dangling=true" -q --no-trunc)
