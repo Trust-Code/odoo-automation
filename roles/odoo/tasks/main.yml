@@ -8,6 +8,7 @@
       role_attr_flags: CREATEDB,NOSUPERUSER
       state: present
       port: "{{ pg_port }}"
+    when: pg_host == "localhost"
 
   - name: Create DB (if necessary)
     become: yes
@@ -20,6 +21,7 @@
         port: "{{ pg_port }}"
     register: dbstatus
     with_items: "{{ databases }}"
+    when: pg_host == "localhost"
 
   - name: Atualiza a imagem do Odoo
     become: yes
@@ -142,14 +144,14 @@
   - name: Inicia o docker odoo e inicializa a base de dados
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -i br_base -r {{ pg_user }} --db_port {{ pg_port }} --db_host {{ pg_host }}  -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: dbstatus.changed
     with_dict: "{{ databases }}"
 
   - name: Inicia o docker odoo em modo atualizacao
     become: yes
     become_user: odoo
-    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} -w {{ pg_password }} --without-demo=all --stop-after-init"
+    command: "docker run --name trustcode-update-odoo-{{ item.key }} --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados trustcode/docker-odoo:{{ item.value.docker.versao }} /usr/bin/odoo-server -c /etc/odoo/odoo.conf -d {{ item.key }} -u {{ module_update }} -r {{ pg_user }} --db_port {{ pg_port }} --db_host {{ pg_host }} -w {{ pg_password }} --without-demo=all --stop-after-init"
     when: module_update != "" and not dbstatus.changed
     with_dict: "{{ databases }}"
 
@@ -166,6 +168,7 @@
       volumes:
         - "/opt/dados/{{ item.key }}:/opt/dados"
       env:
+        PG_HOST: "{{ pg_host }}"
         PG_PORT: "{{ pg_port }}"
         PG_USER: "{{ pg_user }}"
         PG_PASSWORD: "{{ pg_password }}"
