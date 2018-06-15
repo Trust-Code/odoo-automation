@@ -4,38 +4,59 @@
   become: yes
   gather_facts: no
   pre_tasks:
-    - name: 'Install python2'
-      raw: apt-get -y install python-simplejson
+    - name: 'Install python3 and pip'
+      raw: apt-get -y install python3-pip python3-setuptools
   tasks:
+    - name: Cria a pasta backups
+      become: yes
+      become_user: root
+      file: path=/opt/backups/ state=directory mode=0755 owner=odoo
+    - name: Cria a pasta .aws
+      become: yes
+      become_user: root
+      file: path=/home/odoo/.aws/ state=directory mode=0755 owner=odoo
     - copy:
-        src: scripts/odoo_restore.py
-        dest: /opt/backups/odoo_restore.py
+        src: scripts/common.py
+        dest: /opt/backups/common.py
         owner: odoo
         group: odoo
         mode: 0644
     - copy:
         src: scripts/odoo_restore.py
+        dest: /opt/backups/odoo-restore.py
+        owner: odoo
+        group: odoo
+        mode: 0644
+    - copy:
+        src: scripts/odoo_backup.py
         dest: /opt/backups/odoo-backup.py
         owner: odoo
         group: odoo
         mode: 0644
     - template:
         src: templates/aws.credentials
-        dest: ~/.aws/credentials
+        dest: /home/odoo/.aws/credentials
         owner: odoo
         group: odoo
         mode: 0644
     - template:
         src: templates/aws.config
-        dest: ~/.aws/config
+        dest: /home/odoo/.aws/config
         owner: odoo
         group: odoo
         mode: 0644
     - pip:
-        name: awscli
-
+        executable: pip3
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - awscli
+        - docopt
+        - psycopg2
+        - boto3
     - cron:
         name: "Execute backup scripts"
-        minute: "0"
-        hour: "5,2"
-        job: "python3 /opt/backups/odoo-backup.py"
+        user: "odoo"
+        hour: "04"
+        minute: "45"
+        job: "python3 /opt/backups/odoo-backup.py {{ pg_user }} {{ pg_password }}"

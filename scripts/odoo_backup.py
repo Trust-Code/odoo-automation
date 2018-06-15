@@ -64,15 +64,17 @@ def run_backup(args):
         conexao.create_bucket(Bucket=bucket_name)
         conexao.upload_file(t.name, bucket_name, name_to_store)
 
-        home = '/home/danimar/.local/share/Odoo/filestore/%s' % database
-        method = 'aws s3 --region=us-east-1 --output=json --delete sync %s s3://11.0/%s/filestore/' % (
-            home, database
-        )
-
-        env = os.environ.copy()
-        env['AWS_ACCESS_KEY_ID'] = args['-s']
-        env['AWS_SECRET_ACCESS_KEY'] = args['-k']
-        subprocess.call(method, shell=True, env=env)
+        for folder in os.listdir('/opt/dados/'):
+            if not os.path.isdir('/opt/dados/%s/' % folder):
+                continue
+            home = '/opt/dados/%s/filestore/%s' % (folder, database)
+            if not os.path.exists(home):
+                continue
+            method = '/usr/local/bin/aws s3 --region=us-east-1 --output=json --delete sync %s s3://11.0/%s/filestore/' % (
+                home, database
+            )
+            env = os.environ.copy()
+            subprocess.call(method.split(), shell=False, env=env)
 
 
 if __name__ == '__main__':

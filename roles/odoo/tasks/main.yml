@@ -22,7 +22,7 @@
     register: dbstatus
     with_items: "{{ databases }}"
     when: pg_host == "localhost"
-
+  
   - name: Atualiza a imagem do Odoo
     become: yes
     become_user: odoo

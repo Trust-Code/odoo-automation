@@ -6,3 +6,4 @@ group_vars
 inventory
 automation-vars
 __pycache__
+templates/*.credentials

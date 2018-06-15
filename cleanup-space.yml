@@ -6,6 +6,8 @@
   tasks:
     - name: Limpando volumes do docker
       raw: docker volume rm $(docker volume ls -qf dangling=true)
+      ignore_errors: yes
 
-    - name: Limpando imagens do docker
-      raw: docker rmi $(docker images --filter "dangling=true" -q --no-trunc)
+    - name: Limpando imagens do docker - ignora erros
+      raw: docker 2>/dev/null 1>&2 rmi $(docker images --filter "dangling=true" -q --no-trunc)
+      ignore_errors: yes
