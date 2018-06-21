@@ -3,28 +3,25 @@
 
 Options:
   -h --help
-  -s KEY         acess key to amazon server
-  -k SKEY        secret key to amazon server
-  -d             download files from s3
-  -l             local backup (change the directory of 'filestore')
-  -z --zip       use it if dump.sql and manifest.json are inside a .zip file
-  -t             trial version (changes nfse enviroment to 'homologacao')
-  -e --exclude   exclude files after completed process
-  -p PATH        path to files, if they are already downloaded
-  -f FILE        name of the '.zip' archive
-  --bucket NAME  name of the amazon bucket (default dbname_bkp_pelikan)
-  -o             use it if filestore and dump in a sigle .zip
+  -s KEY           acess key to amazon server
+  -k SKEY          secret key to amazon server
+  -l               local backup (change the directory of 'filestore')
+  -d --docker-name name of the odoo docker
+  --production     production database (don't change nfse env to 'homologacao')
+  -e --exclude     exclude files after completed process
+  -p PATH          path to files, if they are already downloaded
+  -f FILE          name of the '.zip' archive
 
 """
 from docopt import docopt
-from datetime import date, timedelta
+from datetime import datetime
 import subprocess
+from getpass import getuser
 from psycopg2 import connect
 import os
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from boto3 import resource
 from zipfile import ZipFile
-from common import exec_pg_command
 
 
 def check_args(args):
@@ -32,15 +29,6 @@ def check_args(args):
             ['<dbpasswd>']):
         exit("(<dbname> <dbuser> <dbpasswd>) are required!\
                 \n Use '-h' for help")
-
-    if args['-d']:
-        if (args['-p'] or args['-f']):
-            exit("Invalid parameters, you can't use -p or -f when you're\
-downloading the files \n Use '-h' for help")
-        if not (args['-s'] and args['-k']):
-            exit("To download the files you need to provide the acess key\
-and secret key to the amazon server, using '-a' and '-s'\
-\n Use '-h' for help")
 
     if args['-p']:
         if (args['-p'][-1] != '/'):
@@ -52,41 +40,60 @@ and secret key to the amazon server, using '-a' and '-s'\
         exit("Name of the . zip file must end with '.zip'")
 
 
-def get_filestore_from_amazon(dbname):
-    path = 's3://11.0/%s/filestore' % dbname
-    dest = '/opt/dados/teste/'
+def get_path_to_files(dbname):
+    directory = '/opt/backups/dados/{}'.format(dbname)
+    if not os.path.exists(os.path.join(directory, 'filestore')):
+        os.makedirs(os.path.join(directory, 'filestore'))
+    return directory
 
-    method = '/usr/local/bin/aws s3 --region=us-east-1 --output=json --delete sync %s %s' % (
+
+def get_filestore_from_amazon(dbname, dest):
+    path = 's3://11.0/%s/filestore' % dbname
+
+    method = 'aws s3 --region=us-east-1 --output=json --delete sync %s %s' % (
         path, dest
     )
     env = os.environ.copy()
     subprocess.call(method.split(), shell=False, env=env)
 
 
-def move_filestore(dbname, local, path_to_files):
+def move_filestore(docker_name, dbname, local, path_to_files):
     if local:
-        path = '~/.local/share/Odoo/filestore/' + dbname + '/'
+        path = os.path.join('/home', getuser(), '.local/share/Odoo/filestore/',
+                            dbname)
     else:
-        path = '/opt/dados/' + dbname + '/'
-    if subprocess.check_output('ls ' + path_to_files + 'filestore',
-                               shell=True):
-        try:
-            subprocess.call('rm -rf ' + path, shell=True)
-        except Exception:
-            pass
+        path = os.path.join('/opt/dados/', docker_name, '/filestore/', dbname)
 
-        subprocess.call('mkdir ' + path, shell=True)
-
-        subprocess.check_call('mv ' + path_to_files + 'filestore/* ' +
-                              path, shell=True)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    cmd = 'cp -r ' + os.path.join(
+        path_to_files, 'filestore') + '/' + '. ' + path
+    subprocess.call(cmd, shell=True)
 
 
-def get_db_from_amazon(dbname, access_key, secret_key):
-    conexao = resource('s3', aws_access_key_id=access_key,
-                       aws_secret_access_key=secret_key)
-    filename = "%s/%s" % (
-        dbname, (date.today() + timedelta(days=-1)).strftime(''))
-    conexao.Bucket('11.0').download_file(filename, dbname + '.zip')
+def get_latest_aws_file(conn, dbname):
+    bucket = conn.Bucket('11.0')
+    objects = {}
+    for obj in bucket.objects.filter(Prefix="{}/{}".format(dbname, dbname)):
+        objects.update({obj.key: extract_data_from_name(obj.key)})
+    return sorted(objects.items(), key=lambda x: x[1])[-1][0]
+
+
+def extract_data_from_name(string):
+    try:
+        file_date = string[-14:-4]
+    except Exception:
+        return
+    return datetime.strptime(file_date, '%d_%m_%Y')
+
+
+def get_db_from_amazon(dbname, path, access_key, secret_key):
+    conn = resource('s3', aws_access_key_id=access_key,
+                    aws_secret_access_key=secret_key)
+    filename = get_latest_aws_file(conn, dbname)
+
+    conn.Bucket('11.0').download_file(filename, os.path.join(
+        path, dbname + '.zip'))
 
 
 def create_new_db(dbname, dbuser, dbpasswd):
@@ -131,62 +138,50 @@ WHERE tipo_ambiente_nfse=1')
 
 
 def restore_database(args):
-    path_to_dump = args['-p']
-    path_to_filestore = args['-p']
+    path_to_files = args['-p']
 
     if not args['-p']:
-        path_to_dump = ''
-        path_to_filestore = ''
-
-    if args['-d']:
-        if not args['-o']:
-            get_filestore_from_amazon(args['<dbname>'])
-        get_db_from_amazon(
-            args['<dbname>'], args['-s'], args['-k'])
-        args['-p'] = ''
+        path_to_files = get_path_to_files(args['<dbname>'])
 
     if not args['-f']:
+        get_filestore_from_amazon(args['<dbname>'],
+                                  os.path.join(path_to_files, 'filestore'))
+        get_db_from_amazon(
+            args['<dbname>'], path_to_files, args['-s'], args['-k'])
         args['-f'] = args['<dbname>'] + '.zip'
 
-    if args['--zip'] or args['-d']:
-        try:
-            archive = ZipFile(args['-p'] + args['-f'])
-            archive.extractall()
-            if not args['-o']:
-                path_to_filestore = args['-p']
-            else:
-                path_to_filestore = ''
-            path_to_dump = ''
+    try:
+        archive = ZipFile(os.path.join(path_to_files, args['-f']))
+        archive.extractall(path_to_files)
 
-        except Exception as e:
-            print(e)
-            raise Exception('.zip file not found!')
+    except Exception as e:
+        print(e)
+        raise Exception('.zip file not found!')
 
-    create_new_db(args['<dbname>'], args['<dbuser>'], args['<dbpasswd>'])
+    dbname = args['<dbname>'] + datetime.now().strftime('%d_%m_%Y')
+    create_new_db(dbname, args['<dbuser>'], args['<dbpasswd>'])
 
-    pg_cmd = 'psql'
-    pg_args = [
-        '-q',
-        '-f',
-        os.path.join(path_to_dump, 'dump.sql'),
-        '--dbname=' + args['<dbname>']]
+    arguments = ['psql',
+                 '-d{}'.format(dbname),
+                 '-f{}'.format(os.path.join(path_to_files, 'dump.sql')),
+                 '-U{}'.format(args['<dbuser>']),
+                 '-W']
 
-    exec_pg_command(pg_cmd, *pg_args, **args)
+    subprocess.call(arguments)
 
-    move_filestore(args['<dbname>'], args['-l'], path_to_filestore)
+    move_filestore(args['--docker-name'], dbname, args['-l'], path_to_files)
 
     if args['--exclude']:
 
-        if args['--zip'] or args['-d']:
-            os.remove(args['-p'] + args['-f'])
+        try:
+            os.remove(os.path.join(path_to_files, args['-f']))
+            os.remove(os.path.join(path_to_files, 'dump.sql'))
+        except Exception:
+            pass
 
-        os.remove(path_to_dump + 'dump.sql')
-        os.remove(path_to_dump + 'manifest.json')
-        os.rmdir(os.path.join(path_to_filestore, 'filestore'))
-
-    if args['-t']:
+    if not args['--production']:
         change_to_homologacao(
-            args['<dbname>'], args['<dbuser>'], args['<dbpasswd>'])
+            dbname, args['<dbuser>'], args['<dbpasswd>'])
 
 
 if __name__ == '__main__':
