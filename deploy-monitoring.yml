@@ -1,0 +1,86 @@
+---
+- name: Deploy monitoring tools for production servers
+  hosts: desenvolvimento,producao
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Create a monitoring user for postgres
+      become: yes
+      become_user: postgres
+      postgresql_user:
+        name: "pg_monitoring"
+        password: "{{ lookup('password', '~/ansible/monitoring-pg-password chars=ascii_letters,digits') }}"
+        state: present
+        port: "5432"
+    - name: Ensure we have access from the new user
+      become: yes
+      become_user: postgres
+      postgresql_privs:
+        db: trustcode
+        role: pg_monitoring
+        objs: ALL_IN_SCHEMA
+        privs: SELECT
+
+    - name: Postgres - Enable outside access
+      blockinfile:
+        path: /etc/postgresql/9.5/main/postgresql.conf
+        marker: "# {mark} Enable outside access"
+        block: |
+            listen_addresses = '*'
+            shared_preload_libraries = 'pg_stat_statements'
+            track_io_timing = on
+
+    - name: Postgres - Enable outside access pg_hba.conf
+      blockinfile:
+        path: /etc/postgresql/9.5/main/pg_hba.conf
+        marker: "# {mark} Enable outside access"
+        block: |
+            host    all             all              0.0.0.0/0                       md5
+
+    - name: Postgres | Restart service to get new configuration
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: Install postgresql-plpython
+      apt: pkg=postgresql-plpython state=installed
+
+    - name: Local PostgreSQL - Active the 'pg_stat_statements' extension on databases
+      become: yes
+      become_user: postgres
+      postgresql_ext: name=pg_stat_statements db=trustcode
+
+    - name: Local PostgreSQL - Active the 'plpythonu' extension on databases
+      become: yes
+      become_user: postgres
+      postgresql_ext: name=plpythonu db=trustcode
+
+    - name: Template sql script
+      become: yes
+      become_user: postgres
+      template:  src="scripts/stat_activity_wrapper.sql" dest="/etc/postgresql/9.5/main/stat_activity_wrapper.sql"
+
+    - name: Execute some sql via psql
+      become: yes
+      become_user: postgres
+      command: psql -f /etc/postgresql/9.5/main/stat_activity_wrapper.sql trustcode
+
+    - name: Template sql script
+      become: yes
+      become_user: postgres
+      template:  src="scripts/stat_statements_wrapper.sql" dest="/etc/postgresql/9.5/main/stat_statements_wrapper.sql"
+
+    - name: Execute some sql via psql
+      become: yes
+      become_user: postgres
+      command: psql -f /etc/postgresql/9.5/main/stat_statements_wrapper.sql trustcode
+
+    - name: Template sql script
+      become: yes
+      become_user: postgres
+      template:  src="scripts/cpu_load_plpythonu.sql" dest="/etc/postgresql/9.5/main/cpu_load_plpythonu.sql"
+
+    - name: Execute some sql via psql
+      become: yes
+      become_user: postgres
+      command: psql -f /etc/postgresql/9.5/main/cpu_load_plpythonu.sql trustcode

@@ -1,4 +1,7 @@
 ---
+swap_file_path: /mnt/swap4096mb.swap
+swap_file_size_kb: 4096
+swappiness: 10
 databases: []
 pg_host: localhost
 pg_port: 5432
@@ -12,3 +15,5 @@ max_wal_size: 2GB
 checkpoint_completion_target: 0.7
 wal_buffers: 16MB
 default_statistics_target: 100
+pg_version: 10
+docker_apt_channel: edge

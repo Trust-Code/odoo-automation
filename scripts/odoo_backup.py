@@ -7,7 +7,7 @@ Options:
   -s SKEY        secret key to amazon server
   -d --database DATABASE  database to execute backup
   -a --all       execut
-  --upload       upload files do S3
+  --upload       upload files to S3
   -f FILE        name of the '.zip' archive
   --bucket NAME  name of the amazon bucket (default dbname_bkp)
 """

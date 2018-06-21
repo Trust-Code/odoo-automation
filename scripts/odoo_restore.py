@@ -17,11 +17,12 @@ Options:
 
 """
 from docopt import docopt
+from datetime import date, timedelta
 import subprocess
 from psycopg2 import connect
 import os
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from boto.s3.connection import S3Connection
+from boto3 import resource
 from zipfile import ZipFile
 from common import exec_pg_command
 
@@ -51,13 +52,15 @@ and secret key to the amazon server, using '-a' and '-s'\
         exit("Name of the . zip file must end with '.zip'")
 
 
-def get_filestore_from_amazon(bucket, args):
-    path = 's3://' + bucket + '/filestore/'
+def get_filestore_from_amazon(dbname):
+    path = 's3://11.0/%s/filestore' % dbname
+    dest = '/opt/dados/teste/'
+
+    method = '/usr/local/bin/aws s3 --region=us-east-1 --output=json --delete sync %s %s' % (
+        path, dest
+    )
     env = os.environ.copy()
-    env['AWS_ACCESS_KEY_ID'] = args['-s']
-    env['AWS_SECRET_ACCESS_KEY'] = args['-k']
-    subprocess.call(
-        'aws s3 cp ' + path + ' . --recursive', shell=True, env=env)
+    subprocess.call(method.split(), shell=False, env=env)
 
 
 def move_filestore(dbname, local, path_to_files):
@@ -78,21 +81,12 @@ def move_filestore(dbname, local, path_to_files):
                               path, shell=True)
 
 
-def get_db_from_amazon(dbname, bucket, access_key, secret_key):
-    conexao = S3Connection(access_key, secret_key)
-    bucket = conexao.lookup(bucket)
-    sorted_list = sorted([(k.last_modified, k) for k in bucket],
-                         key=lambda x: x[0].last_modified)
-    key_to_download = False
-    for index in range(-1, -(len(sorted_list) + 1), -1):
-        if '.zip' in str(sorted_list[index][1]):
-            key_to_download = sorted_list[index][1]
-
-    if key_to_download:
-        key_to_download.get_contents_to_filename(dbname + '.zip')
-    else:
-        raise Exception('Arquivo nao encontrado.\
-        \nVerifique se a acess  key e a secret key fornecidas estao corretas!')
+def get_db_from_amazon(dbname, access_key, secret_key):
+    conexao = resource('s3', aws_access_key_id=access_key,
+                       aws_secret_access_key=secret_key)
+    filename = "%s/%s" % (
+        dbname, (date.today() + timedelta(days=-1)).strftime(''))
+    conexao.Bucket('11.0').download_file(filename, dbname + '.zip')
 
 
 def create_new_db(dbname, dbuser, dbpasswd):
@@ -108,7 +102,7 @@ def create_new_db(dbname, dbuser, dbpasswd):
     try:
         cur.execute('CREATE DATABASE ' + dbname + ' with owner ' + dbuser)
     except Exception as e:
-        print (e)
+        print(e)
         exit("Can't replace a database that is being used by other users")
 
     cur.close()
@@ -144,19 +138,11 @@ def restore_database(args):
         path_to_dump = ''
         path_to_filestore = ''
 
-    if not args['--bucket']:
-        args['--bucket'] = '%s_bkp_pelican' % args['<dbname>']
-
     if args['-d']:
         if not args['-o']:
-            try:
-                get_filestore_from_amazon(args['--bucket'], args)
-            except Exception:
-                exit("Download from amazon failed!\
-                    \n Do you have 'awscli' installed and configured?\
-                    \n 'pip install awscli'\n 'aws configure'")
+            get_filestore_from_amazon(args['<dbname>'])
         get_db_from_amazon(
-            args['<dbname>'], args['--bucket'], args['-s'], args['-k'])
+            args['<dbname>'], args['-s'], args['-k'])
         args['-p'] = ''
 
     if not args['-f']:
@@ -173,7 +159,7 @@ def restore_database(args):
             path_to_dump = ''
 
         except Exception as e:
-            print (e)
+            print(e)
             raise Exception('.zip file not found!')
 
     create_new_db(args['<dbname>'], args['<dbuser>'], args['<dbpasswd>'])

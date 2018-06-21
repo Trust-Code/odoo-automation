@@ -10,6 +10,11 @@
         path: "/etc/nginx/sites-available/default"
         state: absent
 
+  - name: Nginx | Remover nginx default configuracao
+    file:
+        path: "/etc/nginx/sites-enabled/default"
+        state: absent
+
   - name: Nginx | Assegurar que Nginx esta instalado (package)
     service:
         name: nginx

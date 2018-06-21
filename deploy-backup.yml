@@ -60,3 +60,4 @@
         hour: "04"
         minute: "45"
         job: "python3 /opt/backups/odoo-backup.py {{ pg_user }} {{ pg_password }}"
+      when: inventory_hostname in groups['producao']
