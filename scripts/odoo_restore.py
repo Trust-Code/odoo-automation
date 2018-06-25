@@ -62,7 +62,7 @@ def move_filestore(docker_name, dbname, local, path_to_files):
         path = os.path.join('/home', getuser(), '.local/share/Odoo/filestore/',
                             dbname)
     else:
-        path = os.path.join('/opt/dados/', docker_name, '/filestore/', dbname)
+        path = os.path.join('/opt/dados/', docker_name, 'filestore', dbname)
 
     if not os.path.exists(path):
         os.makedirs(path)
