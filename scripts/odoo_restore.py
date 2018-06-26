@@ -54,7 +54,7 @@ def get_filestore_from_amazon(dbname, dest):
         path, dest
     )
     env = os.environ.copy()
-    subprocess.call(method.split(), shell=False, env=env)
+    subprocess.check_call(method.split(), env=env)
 
 
 def move_filestore(docker_name, dbname, local, path_to_files):
@@ -68,7 +68,7 @@ def move_filestore(docker_name, dbname, local, path_to_files):
         os.makedirs(path)
     cmd = 'cp -r ' + os.path.join(
         path_to_files, 'filestore') + '/' + '. ' + path
-    subprocess.call(cmd, shell=True)
+    subprocess.check_call(cmd, shell=True)
 
 
 def get_latest_aws_file(conn, dbname):
@@ -167,7 +167,7 @@ def restore_database(args):
                  '-U{}'.format(args['<dbuser>']),
                  '-W']
 
-    subprocess.call(arguments)
+    subprocess.check_call(arguments)
 
     move_filestore(args['--docker-name'], dbname, args['-l'], path_to_files)
 
