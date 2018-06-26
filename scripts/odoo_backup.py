@@ -63,6 +63,7 @@ def run_backup(args):
         bucket_name = '11.0'
         conexao.create_bucket(Bucket=bucket_name)
         conexao.upload_file(t.name, bucket_name, name_to_store)
+        os.remove(t.name)
 
         for folder in os.listdir('/opt/dados/'):
             if not os.path.isdir('/opt/dados/%s/' % folder):
