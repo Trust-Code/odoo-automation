@@ -98,7 +98,7 @@ def get_db_from_amazon(dbname, path, access_key, secret_key):
 
 def create_new_db(dbname, dbuser, dbpasswd):
     con = connect(
-        dbname='postgres', user=dbuser, host='localhost', password=dbpasswd)
+        dbname='postgres', user=dbuser, host='127.0.0.1', password=dbpasswd)
     con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
     try:
@@ -142,15 +142,20 @@ def restore_database(args):
 
     if not args['-p']:
         path_to_files = get_path_to_files(args['<dbname>'])
+    else:
+        path_to_files = os.path.join(path_to_files, args['<dbname>'])
 
     if not args['-f']:
+        print("Downloading filestore from AWS")
         get_filestore_from_amazon(args['<dbname>'],
                                   os.path.join(path_to_files, 'filestore'))
+        print("Download database from AWS")
         get_db_from_amazon(
             args['<dbname>'], path_to_files, args['-s'], args['-k'])
         args['-f'] = args['<dbname>'] + '.zip'
 
     try:
+        print("Unziping database file")
         archive = ZipFile(os.path.join(path_to_files, args['-f']))
         archive.extractall(path_to_files)
 
@@ -158,17 +163,21 @@ def restore_database(args):
         print(e)
         raise Exception('.zip file not found!')
 
+    print("Creating new database")
     dbname = args['<dbname>'] + datetime.now().strftime('%d_%m_%Y')
     create_new_db(dbname, args['<dbuser>'], args['<dbpasswd>'])
 
     arguments = ['psql',
+                 '-h127.0.0.1',
                  '-d{}'.format(dbname),
                  '-f{}'.format(os.path.join(path_to_files, 'dump.sql')),
                  '-U{}'.format(args['<dbuser>']),
                  '-W']
 
+    print("Restore the database file")
     subprocess.check_call(arguments)
 
+    print("Moving filestore for the new database")
     move_filestore(args['--docker-name'], dbname, args['-l'], path_to_files)
 
     if args['--exclude']:
@@ -180,6 +189,7 @@ def restore_database(args):
             pass
 
     if not args['--production']:
+        print("Adjusting parameters for testing environment")
         change_to_homologacao(
             dbname, args['<dbuser>'], args['<dbpasswd>'])
 
