@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Usage: odoo_restore.py (<dbname> <dbuser> <dbpasswd>) [options]
           odoo_restore.py -h | --help
 
@@ -117,25 +118,28 @@ def create_new_db(dbname, dbuser, dbpasswd):
 
 
 def change_to_homologacao(dbname, dbuser, dbpasswd):
-    con = connect(dbname=dbname, user=dbuser, host='localhost',
+    con = connect(dbname=dbname, user=dbuser, host='127.0.0.1',
                   password=dbpasswd)
     con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
     try:
         cur.execute(
-            'UPDATE res_company SET tipo_ambiente=2 WHERE tipo_ambiente=1')
-    except Exception:
-        pass
+            'UPDATE res_company SET tipo_ambiente=2;')
+    except Exception as e:
+        print(u"ERROR while changing Ambiente NFe to Homologação")
+        print(e)
     try:
         cur.execute(
-            'UPDATE res_company SET tipo_ambiente_nfse=2\
-WHERE tipo_ambiente_nfse=1')
-    except Exception:
-        pass
+            'UPDATE res_company SET tipo_ambiente_nfse=2;')
+    except Exception as e:
+        print(u"ERROR while changing Ambiente NFSe to Homologação")
+        print(e)
 
     cur.execute('delete from fetchmail_server')
     cur.execute('delete from ir_mail_server')
 
+    cur.close()
+    con.close()
 
 def restore_database(args):
     path_to_files = args['-p']
@@ -169,6 +173,7 @@ def restore_database(args):
 
     arguments = ['psql',
                  '-h127.0.0.1',
+                 '-q',
                  '-d{}'.format(dbname),
                  '-f{}'.format(os.path.join(path_to_files, 'dump.sql')),
                  '-U{}'.format(args['<dbuser>']),
