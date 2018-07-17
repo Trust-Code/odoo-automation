@@ -124,13 +124,17 @@ def change_to_homologacao(dbname, dbuser, dbpasswd):
     cur = con.cursor()
     try:
         cur.execute(
-            'UPDATE res_company SET tipo_ambiente=2;')
+            "UPDATE res_company SET tipo_ambiente='2';")
     except Exception as e:
         print(u"ERROR while changing Ambiente NFe to Homologação")
         print(e)
     try:
         cur.execute(
-            'UPDATE res_company SET tipo_ambiente_nfse=2;')
+            "UPDATE res_company SET tipo_ambiente_nfse='2' where \
+tipo_ambiente_nfse='1';")
+        cur.execute(
+            "UPDATE res_company SET tipo_ambiente_nfse='homologacao' where \
+tipo_ambiente_nfse='producao';")
     except Exception as e:
         print(u"ERROR while changing Ambiente NFSe to Homologação")
         print(e)
