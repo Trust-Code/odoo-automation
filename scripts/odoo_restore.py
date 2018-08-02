@@ -23,6 +23,7 @@ import os
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from boto3 import resource
 from zipfile import ZipFile
+import uuid
 
 
 def check_args(args):
@@ -97,11 +98,15 @@ def get_db_from_amazon(dbname, path, access_key, secret_key):
         path, dbname + '.zip'))
 
 
-def create_new_db(dbname, dbuser, dbpasswd):
-    con = connect(
-        dbname='postgres', user=dbuser, host='127.0.0.1', password=dbpasswd)
+def get_new_database_cursor(dbname, dbuser, dbpasswd):
+    con = connect(dbname=dbname, user=dbuser, host='127.0.0.1',
+                  password=dbpasswd)
     con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    cur = con.cursor()
+    return con, con.cursor()
+
+
+def create_new_db(dbname, dbuser, dbpasswd):
+    con, cur = get_new_database_cursor('postgres', dbuser, dbpasswd)
     try:
         cur.execute('drop database ' + dbname)
     except Exception:
@@ -112,16 +117,12 @@ def create_new_db(dbname, dbuser, dbpasswd):
     except Exception as e:
         print(e)
         exit("Can't replace a database that is being used by other users")
-
     cur.close()
     con.close()
 
 
-def change_to_homologacao(dbname, dbuser, dbpasswd):
-    con = connect(dbname=dbname, user=dbuser, host='127.0.0.1',
-                  password=dbpasswd)
-    con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    cur = con.cursor()
+def change_to_homologacao(cur):
+
     try:
         cur.execute(
             "UPDATE res_company SET tipo_ambiente='2';")
@@ -142,8 +143,15 @@ tipo_ambiente_nfse='producao';")
     cur.execute('delete from fetchmail_server')
     cur.execute('delete from ir_mail_server')
 
-    cur.close()
-    con.close()
+
+def change_database_uuid(cur):
+    try:
+        cur.execute("UPDATE ir_config_parameter SET value={} \
+WHERE key='database.uuid';".format(str(uuid.uuid4())))
+    except Exception as e:
+        print(u"ERROR while changing database UUID")
+        print(e)
+
 
 def restore_database(args):
     path_to_files = args['-p']
@@ -173,7 +181,11 @@ def restore_database(args):
 
     print("Creating new database")
     dbname = args['<dbname>'] + datetime.now().strftime('%d_%m_%Y')
+
     create_new_db(dbname, args['<dbuser>'], args['<dbpasswd>'])
+
+    db_connection, db_cursor = get_new_database_cursor(
+        dbname, args['<dbuser>'], args['<dbpasswd>'])
 
     arguments = ['psql',
                  '-h127.0.0.1',
@@ -198,9 +210,15 @@ def restore_database(args):
             pass
 
     if not args['--production']:
+
         print("Adjusting parameters for testing environment")
-        change_to_homologacao(
-            dbname, args['<dbuser>'], args['<dbpasswd>'])
+        change_to_homologacao(db_cursor)
+
+        print("Changing database UUID")
+        change_database_uuid(db_cursor)
+
+    db_cursor.close()
+    db_connection.close()
 
 
 if __name__ == '__main__':
