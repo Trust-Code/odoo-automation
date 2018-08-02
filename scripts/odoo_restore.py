@@ -146,10 +146,18 @@ tipo_ambiente_nfse='producao';")
 
 def change_database_uuid(cur):
     try:
-        cur.execute("UPDATE ir_config_parameter SET value={} \
+        cur.execute("UPDATE ir_config_parameter SET value='{}' \
 WHERE key='database.uuid';".format(str(uuid.uuid4())))
     except Exception as e:
         print(u"ERROR while changing database UUID")
+        print(e)
+
+
+def delete_enterprise_code(cur):
+    try:
+        cur.execute("DELETE from ir_config_parameter WHERE key='database.enterprise_code';")
+    except Exception as e:
+        print(u"ERROR while deleting enterprise code")
         print(e)
 
 
@@ -216,6 +224,9 @@ def restore_database(args):
 
         print("Changing database UUID")
         change_database_uuid(db_cursor)
+
+        print("Deleting enterprise code")
+        delete_enterprise_code(db_cursor)
 
     db_cursor.close()
     db_connection.close()
