@@ -66,7 +66,7 @@
     become_user: odoo
     git:
       accept_hostkey: True
-      repo: git@github.com:odoo/enterprise.git
+      repo: git@github.com:Trust-Code/enterprise.git
       dest: ~/tmp/odoo-enterprise/{{ item.value.versao }}/
       version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
@@ -223,6 +223,7 @@
     command: "certbot certonly --authenticator standalone --installer nginx -n --expand --agree-tos --email secure@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }} --pre-hook 'service nginx stop' --post-hook 'service nginx start'"
     when: inventory_hostname in groups['producao'] and inventory_hostname not in groups['ssloff']
     with_dict: "{{ databases }}"
+
 
   - name: Nginx | Criar configuracao
     template:
