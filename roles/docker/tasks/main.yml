@@ -1,6 +1,7 @@
 ---
-- name: Install correct version docker-py to avoid problems
-  pip: name=docker-py version=1.9.0
+- name: Install correct version docker to avoid problems
+  pip: 
+    name: docker
 
 - name: Configura usuario padrao
   user:
