@@ -71,7 +71,7 @@
       version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
-    when: item.value.enterprise and item.value.versao in (10.0, 11.0)
+    when: item.value.versao in (10.0, )
 
   - name: Realizando o download da versão trustcode enterprise
     become: yes
@@ -83,7 +83,7 @@
       version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
-    when: item.value.versao in (10.0, 11.0)
+    when: item.value.versao in (10.0, )
 
   - name: Realizando o download da versão odoo reports
     become: yes
@@ -95,52 +95,56 @@
       version: "{{ item.value.versao }}"
       key_file: /home/odoo/.ssh/id_rsa
     with_dict: "{{ docker }}"
-    when: item.value.versao in (10.0, 11.0)
+    when: item.value.versao in (10.0, )
 
   - name: Deleta pasta odoo enterprise
     become: yes
     become_user: odoo
     file: path=~/tmp/odoo-enterprise/{{ item.value.versao }}/.git state=directory state=absent
     with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, )
 
   - name: Deleta pasta trustcode enterprise
     become: yes
     become_user: odoo
     file: path=~/tmp/trustcode-enterprise/{{ item.value.versao }}/.git state=directory state=absent
     with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, )
 
   - name: Deleta pasta odoo-reports
     become: yes
     become_user: odoo
     file: path=~/tmp/odoo-reports/{{ item.value.versao }}/.git state=directory state=absent
     with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, )
 
   - name: Cria a pasta dados
     become: yes
     become_user: root
     file: path=/opt/dados/{{ item.key }}/addons/{{ item.value.versao }} state=directory mode=0755 owner=odoo
     with_dict: "{{ docker }}"
+    when: item.value.versao in (10.0, )
 
   - name: Copia a versão odoo enterprise
     become: yes
     become_user: odoo
     command: cp -a ~/tmp/odoo-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
-    when: item.value.enterprise and item.value.versao in (10.0, 11.0)
+    when: item.value.versao in (10.0, )
 
   - name: Copia a versão trustcode enterprise
     become: yes
     become_user: odoo
     command: cp -a ~/tmp/trustcode-enterprise/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
-    when: item.value.versao in (10.0, 11.0)
+    when: item.value.versao in (10.0, )
 
   - name: Copia a versão odoo reports
     become: yes
     become_user: odoo
     command: cp -a ~/tmp/odoo-reports/{{ item.value.versao }}/. /opt/dados/{{ item.key }}/addons/{{ item.value.versao }}/
     with_dict: "{{ docker }}"
-    when: item.value.versao in (10.0, 11.0)
+    when: item.value.versao in (10.0, )
 
   - name: Inicia o docker odoo e inicializa a base de dados
     become: yes
@@ -168,21 +172,26 @@
       recreate: yes
       volumes:
         - "/opt/dados/{{ item.key }}:/opt/dados"
+        - "/home/odoo/.ssh:/home/temp/.ssh"
       env:
         PG_HOST: "{{ pg_host }}"
         PG_PORT: "{{ pg_port }}"
         PG_USER: "{{ pg_user }}"
         PG_PASSWORD: "{{ pg_password }}"
+        ODOO_PASSWORD: "{{ item.value.admin_password }}"
         PORT: "{{ item.value.porta }}"
         LONGPOLLING_PORT: "{{ item.value.porta_polling }}"
         WORKERS: "{{ workers }}"
+        ODOO_VERSION: "{{ item.value.versao }}"
+        ODOO_ENTERPRISE: "{{ '1' if item.value.enterprise else 0 }}"
+        TRUSTCODE_ENTERPRISE: 1
     with_dict: "{{ docker }}"
 
   - name: Modifica a senha padrão
     become: yes
     become_user: odoo
     command: "docker exec -u root trustcode-odoo-{{ item.key }} sed -i 's/senha_admin/{{ item.value.admin_password }}/' /etc/odoo/odoo.conf"
-    when: inventory_hostname in groups['producao']
+    when: inventory_hostname in groups['producao'] and item.value.versao in (10.0,)
     with_dict: "{{ docker }}"
 
   - name: Adicionando dbfilter ao arquivo de configuração
@@ -223,7 +232,6 @@
     command: "certbot certonly --authenticator standalone --installer nginx -n --expand --agree-tos --email secure@trustcode.com.br --redirect -d {{ ','.join(item.value.domain) }} --pre-hook 'service nginx stop' --post-hook 'service nginx start'"
     when: inventory_hostname in groups['producao'] and inventory_hostname not in groups['ssloff']
     with_dict: "{{ databases }}"
-
 
   - name: Nginx | Criar configuracao
     template:

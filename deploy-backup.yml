@@ -7,6 +7,15 @@
     - name: 'Install python3 and pip'
       raw: apt-get -y install python3-pip python3-setuptools
   tasks:
+    - name: Configura usuário padrão
+      user:
+        name: odoo
+        uid: 1040
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+        password: "{{user_odoo_password}}"
+
     - name: Cria a pasta backups
       become: yes
       become_user: root
@@ -55,9 +64,67 @@
         - psycopg2
         - boto3
     - cron:
-        name: "Execute backup scripts"
+        name: "Execute backup scripts at 00:10 Brazil Time"
         user: "odoo"
-        hour: "04"
-        minute: "45"
+        hour: "03"
+        minute: "10"
         job: "python3 /opt/backups/odoo-backup.py {{ pg_user }} {{ pg_password }}"
+      when: inventory_hostname in groups['producao']
+
+    # - name: Inicia um docker para atualizar o Odoo
+    #   become: yes
+    #   become_user: odoo
+    #   docker_container:
+    #     name: trustcode-autoupdate
+    #     image: trustcode/docker-odoo-update
+    #     network_mode: host
+    #     state: started
+    #     command: autoupdate
+    #     volumes:
+    #       - "/home/odoo/.ssh:/home/temp/.ssh"
+    #     env:
+    #       PG_USER: "{{ pg_user }}"
+    #       PG_PASSWORD: "{{ pg_password }}"
+    #       PORT: "{{ item.value.porta }}"
+    #       ODOO_VERSION: 11.0
+    #       ODOO_ENTERPRISE: 1
+    #       TRUSTCODE_ENTERPRISE: 1
+    #       DATABASE: trustcode
+    #   with_dict: "{{ docker }}"
+
+      # Order here is important
+    - name: "Stop containers that are used to update Odoo at 03:10"
+      cron:
+        name: "Stop containers that are used to update Odoo at 03:10"
+        user: "odoo"
+        # hour: "06"
+        minute: "*/4"
+        job: "docker stop $(docker ps -qa --no-trunc --filter \"name=trustcode-update*\")"
+      when: inventory_hostname in groups['producao']
+
+    - name: "Remove containers that are used to update Odoo at 03:15"
+      cron:
+        name: "Remove containers that are used to update Odoo at 03:15"
+        user: "odoo"
+        # hour: "06"
+        minute: "*/4"
+        job: "docker rm $(docker ps -qa --no-trunc --filter \"status=exited\" --filter \"name=trustcode-update*\")"
+      when: inventory_hostname in groups['producao']
+
+    - name: "Remove images that are not in use at 03:20"
+      cron:
+        name: "Remove images that are not in use at 03:20"
+        user: "odoo"
+        # hour: "06"
+        minute: "*/4"
+        job: "docker rmi $(docker images --filter \"dangling=true\" -q --no-trunc)"
+      when: inventory_hostname in groups['producao']
+
+    - name: "Remove old volumes that are not used anymore at 03:25"
+      cron:
+        name: "Remove old volumes that are not used anymore at 03:25"
+        user: "odoo"
+        # hour: "06"
+        minute: "*/4"
+        job: "docker volume rm $(docker volume ls -qf dangling=true)"
       when: inventory_hostname in groups['producao']

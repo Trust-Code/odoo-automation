@@ -6,6 +6,12 @@
     - name: "module_update"
       prompt: "Digite o modulo a atualizar"
       private: no
+  pre_tasks:
+    - pip: name=docker-py version=1.9.0 state=absent
+
+    - pip: name=docker state=absent
+
+    - pip: name=docker
 
   roles:
     - odoo
