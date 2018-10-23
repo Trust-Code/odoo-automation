@@ -71,34 +71,41 @@
         job: "python3 /opt/backups/odoo-backup.py {{ pg_user }} {{ pg_password }}"
       when: inventory_hostname in groups['producao']
 
-    # - name: Inicia um docker para atualizar o Odoo
-    #   become: yes
-    #   become_user: odoo
-    #   docker_container:
-    #     name: trustcode-autoupdate
-    #     image: trustcode/docker-odoo-update
-    #     network_mode: host
-    #     state: started
-    #     command: autoupdate
-    #     volumes:
-    #       - "/home/odoo/.ssh:/home/temp/.ssh"
-    #     env:
-    #       PG_USER: "{{ pg_user }}"
-    #       PG_PASSWORD: "{{ pg_password }}"
-    #       PORT: "{{ item.value.porta }}"
-    #       ODOO_VERSION: 11.0
-    #       ODOO_ENTERPRISE: 1
-    #       TRUSTCODE_ENTERPRISE: 1
-    #       DATABASE: trustcode
-    #   with_dict: "{{ docker }}"
+    - name: Fire up a docker build
+      cron:
+        name: Fire up a docker build
+        user: odoo
+        hour: "03"
+        minute: "10"
+        job: "curl -H \"Content-Type: application/json\" --data '{\"docker_tag\": \"11.0\"}' -X POST https://registry.hub.docker.com/u/trustcode/docker-odoo/trigger/5074c4ae-bbac-4a0d-a694-cc0b91100055/"
+      when: inventory_hostname == 'trustcode-server'
+
+    - name: Update docker image 20 minutes later
+      cron:
+        name: Update docker image 20 minutes later
+        user: odoo
+        hour: "03"
+        minute: "30"
+        job: "docker pull trustcode/docker-odoo:{{ item.value.versao }}"
+      with_dict: "{{ docker }}"
+
+    #
+    # - name: Update databases with autoupdate
+    #   cron:
+    #     name: Update databases with autoupdate
+    #     user: odoo
+    #     hour: "03"
+    #     minute: "30"
+    #     job: "docker run --name trustcode-update-odoo-{{ item.key }} -e DATABASE='{{ item.key }}' -e PG_USER='{{ pg_user }}' -e PG_PORT={{ pg_port }} -e PG_HOST='{{ pg_host }}' -e PG_PASSWORD='{{ pg_password }}' -e DISABLE_LOGFILE=1 -e ODOO_VERSION={{ item.value.docker.versao }} -e TRUSTCODE_ENTERPRISE=1 -e ODOO_ENTERPRISE=1 --net host -v /opt/dados/{{ item.value.docker.name }}:/opt/dados -v /home/odoo/.ssh:/home/temp/.ssh trustcode/docker-odoo:{{ item.value.docker.versao }} autoupdate"
+    #   with_dict: "{{ databases }}"
 
       # Order here is important
     - name: "Stop containers that are used to update Odoo at 03:10"
       cron:
         name: "Stop containers that are used to update Odoo at 03:10"
         user: "odoo"
-        # hour: "06"
-        minute: "*/4"
+        hour: "06"
+        minute: "30"
         job: "docker stop $(docker ps -qa --no-trunc --filter \"name=trustcode-update*\")"
       when: inventory_hostname in groups['producao']
 
@@ -106,8 +113,8 @@
       cron:
         name: "Remove containers that are used to update Odoo at 03:15"
         user: "odoo"
-        # hour: "06"
-        minute: "*/4"
+        hour: "06"
+        minute: "35"
         job: "docker rm $(docker ps -qa --no-trunc --filter \"status=exited\" --filter \"name=trustcode-update*\")"
       when: inventory_hostname in groups['producao']
 
@@ -115,8 +122,8 @@
       cron:
         name: "Remove images that are not in use at 03:20"
         user: "odoo"
-        # hour: "06"
-        minute: "*/4"
+        hour: "06"
+        minute: "45"
         job: "docker rmi $(docker images --filter \"dangling=true\" -q --no-trunc)"
       when: inventory_hostname in groups['producao']
 
@@ -124,7 +131,7 @@
       cron:
         name: "Remove old volumes that are not used anymore at 03:25"
         user: "odoo"
-        # hour: "06"
-        minute: "*/4"
+        hour: "06"
+        minute: "50"
         job: "docker volume rm $(docker volume ls -qf dangling=true)"
       when: inventory_hostname in groups['producao']

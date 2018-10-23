@@ -47,23 +47,25 @@ def run_backup(args):
     for database in databases:
         if database == 'postgres':
             continue
-        dump_dir = tempfile.mkdtemp()
-        cmd = [database, '--no-owner']
-        dump_path = os.path.join(dump_dir, 'dump.sql')
-        cmd.insert(-1, '--file=' + dump_path)
-        exec_pg_command('pg_dump', *cmd, **args)
-        t = tempfile.NamedTemporaryFile(delete=False)
-        zip_dir(dump_dir, t, include_dir=False)
-        t.close()
+        try:
+            dump_dir = tempfile.mkdtemp()
+            cmd = [database, '--no-owner']
+            dump_path = os.path.join(dump_dir, 'dump.sql')
+            cmd.insert(-1, '--file=' + dump_path)
+            exec_pg_command('pg_dump', *cmd, **args)
+            t = tempfile.NamedTemporaryFile(delete=False)
+            zip_dir(dump_dir, t, include_dir=False)
+            t.close()
 
-        name_to_store = '%s/%s_%s.zip' % (
-            database, database, time.strftime('%d_%m_%Y'))
-        conexao = client('s3', aws_access_key_id=args['-s'],
-                         aws_secret_access_key=args['-k'])
-        bucket_name = '11.0'
-        conexao.create_bucket(Bucket=bucket_name)
-        conexao.upload_file(t.name, bucket_name, name_to_store)
-        os.remove(t.name)
+            name_to_store = '%s/%s_%s.zip' % (
+                database, database, time.strftime('%d_%m_%Y'))
+            conexao = client('s3', aws_access_key_id=args['-s'],
+                             aws_secret_access_key=args['-k'])
+            bucket_name = '11.0'
+            conexao.create_bucket(Bucket=bucket_name)
+            conexao.upload_file(t.name, bucket_name, name_to_store)
+        finally:
+            os.remove(t.name)
 
         for folder in os.listdir('/opt/dados/'):
             if not os.path.isdir('/opt/dados/%s/' % folder):
