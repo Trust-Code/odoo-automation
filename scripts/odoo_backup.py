@@ -12,12 +12,18 @@ Options:
   --bucket NAME  name of the amazon bucket (default dbname_bkp)
 """
 import os
+import re
 import time
+import shutil
+import hashlib
 import tempfile
-import subprocess
 from docopt import docopt
 from psycopg2 import connect
 from boto3 import client
+# from boto.s3.lifecycle import (
+#     Lifecycle,
+#     Expiration,
+# )
 
 from common import exec_pg_command, zip_dir
 
@@ -43,7 +49,6 @@ def _databases_to_execute(args):
 
 def run_backup(args):
     databases = _databases_to_execute(args)
-
     for database in databases:
         if database == 'postgres':
             continue
@@ -57,27 +62,50 @@ def run_backup(args):
             zip_dir(dump_dir, t, include_dir=False)
             t.close()
 
-            name_to_store = '%s/%s_%s.zip' % (
-                database, database, time.strftime('%d_%m_%Y'))
+            bucket_name = re.sub('[^0-9a-z]', '-', database)
+            hash = hashlib.md5(bucket_name.encode())
+            bucket_name += hash.hexdigest()[:8]
+
             conexao = client('s3', aws_access_key_id=args['-s'],
                              aws_secret_access_key=args['-k'])
-            bucket_name = '11.0'
-            conexao.create_bucket(Bucket=bucket_name)
-            conexao.upload_file(t.name, bucket_name, name_to_store)
-        finally:
-            os.remove(t.name)
 
-        for folder in os.listdir('/opt/dados/'):
-            if not os.path.isdir('/opt/dados/%s/' % folder):
-                continue
-            home = '/opt/dados/%s/filestore/%s' % (folder, database)
-            if not os.path.exists(home):
-                continue
-            method = '/usr/local/bin/aws s3 --region=us-east-1 --output=json --delete sync %s s3://11.0/%s/filestore/' % (
-                home, database
+            conexao.create_bucket(Bucket=bucket_name)
+
+            # don't touch here
+            conexao.put_bucket_lifecycle_configuration(
+                Bucket=bucket_name,
+                LifecycleConfiguration={
+                    'Rules': [{'Expiration': {'Days': 1}, 'Filter': {'Prefix': ''}, 'Status': 'Enabled', 'NoncurrentVersionExpiration': {'NoncurrentDays': 1}}]
+                }
             )
-            env = os.environ.copy()
-            subprocess.call(method.split(), shell=False, env=env)
+
+            name_to_store = '%s_%s.zip' % (
+                database, time.strftime('%d_%m_%Y'))
+            name_store = '%s_%s_filestore.zip' % (
+                database, time.strftime('%d_%m_%Y'))
+
+            conexao.upload_file(t.name, bucket_name, name_to_store)
+
+            base_dir = '/opt/dados/'
+            base_dir = '/home/danimar/.local/share/Odoo/'
+
+            for folder in os.listdir(base_dir):
+                if not os.path.isdir('%s%s/' % (base_dir, folder)):
+                    continue
+                home = '%s/filestore/%s' % (base_dir, database)
+                if not os.path.exists(home):
+                    continue
+
+                t_filestore = tempfile.NamedTemporaryFile(delete=False)
+                zip_dir(home, t_filestore, include_dir=True)
+                t_filestore.close()
+
+                conexao.upload_file(t_filestore.name, bucket_name, name_store)
+
+        finally:
+            shutil.rmtree(dump_dir, ignore_errors=True)
+            os.remove(t.name)
+            os.remove(t_filestore.name)
 
 
 if __name__ == '__main__':
