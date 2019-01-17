@@ -64,7 +64,7 @@ def run_backup(args):
 
             bucket_name = re.sub('[^0-9a-z]', '-', database)
             hash = hashlib.md5(bucket_name.encode())
-            bucket_name += hash.hexdigest()[:8]
+            bucket_name += '-' + hash.hexdigest()[:8]
 
             conexao = client('s3', aws_access_key_id=args['-s'],
                              aws_secret_access_key=args['-k'])
@@ -75,7 +75,7 @@ def run_backup(args):
             conexao.put_bucket_lifecycle_configuration(
                 Bucket=bucket_name,
                 LifecycleConfiguration={
-                    'Rules': [{'Expiration': {'Days': 1}, 'Filter': {'Prefix': ''}, 'Status': 'Enabled', 'NoncurrentVersionExpiration': {'NoncurrentDays': 1}}]
+                    'Rules': [{'Expiration': {'Days': 30}, 'Filter': {'Prefix': ''}, 'Status': 'Enabled', 'NoncurrentVersionExpiration': {'NoncurrentDays': 30}}]
                 }
             )
 
@@ -87,12 +87,12 @@ def run_backup(args):
             conexao.upload_file(t.name, bucket_name, name_to_store)
 
             base_dir = '/opt/dados/'
-            base_dir = '/home/danimar/.local/share/Odoo/'
+            # base_dir = '/home/danimar/.local/share/Odoo/'
 
             for folder in os.listdir(base_dir):
                 if not os.path.isdir('%s%s/' % (base_dir, folder)):
                     continue
-                home = '%s/filestore/%s' % (base_dir, database)
+                home = '%s%s/filestore/%s' % (base_dir, folder, database)
                 if not os.path.exists(home):
                     continue
 
