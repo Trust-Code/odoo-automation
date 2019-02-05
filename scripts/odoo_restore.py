@@ -49,14 +49,12 @@ def get_path_to_files(dbname):
     return directory
 
 
-def get_filestore_from_amazon(dbname, dest):
-    path = 's3://11.0/%s/filestore' % dbname
-
-    method = 'aws s3 --region=us-east-1 --output=json --delete sync %s %s' % (
-        path, dest
-    )
-    env = os.environ.copy()
-    subprocess.check_call(method.split(), env=env)
+def get_filestore_from_amazon(dbname, path, access_key, secret_key):
+    conn = resource('s3', aws_access_key_id=access_key,
+                    aws_secret_access_key=secret_key)
+    filename = get_latest_aws_file(conn, dbname, is_filestore=True)
+    conn.Bucket(dbname).download_file(filename, os.path.join(
+        path, dbname + '_filestore' + '.zip'))
 
 
 def move_filestore(docker_name, dbname, local, path_to_files):
@@ -73,17 +71,32 @@ def move_filestore(docker_name, dbname, local, path_to_files):
     subprocess.check_call(cmd, shell=True)
 
 
-def get_latest_aws_file(conn, dbname):
-    bucket = conn.Bucket('11.0')
+def get_latest_aws_file(conn, dbname, is_filestore=False):
+    bucket = conn.Bucket(dbname)
     objects = {}
-    for obj in bucket.objects.filter(Prefix="{}/{}".format(dbname, dbname)):
-        objects.update({obj.key: extract_data_from_name(obj.key)})
+    prefix = dbname.split('-')[0]
+    for obj in bucket.objects.filter(Prefix='{}'.format(prefix),
+                                     MaxKeys=len(prefix)+15):
+        date = extract_date_to_order(obj.key, is_filestore)
+        if date is not None:
+            objects.update({obj.key: date})
     return sorted(objects.items(), key=lambda x: x[1])[-1][0]
 
 
-def extract_data_from_name(string):
+def extract_date_to_order(string, get_filestore=False):
+        is_filestore = 'filestore' in string
+        if is_filestore:
+            if get_filestore:
+                return extract_date_from_name(string[0:-14])
+        elif not get_filestore:
+            return extract_date_from_name(string[0:-4])
+        else:
+            return
+
+
+def extract_date_from_name(string):
     try:
-        file_date = string[-14:-4]
+        file_date = string[-10:]
     except Exception:
         return
     return datetime.strptime(file_date, '%d_%m_%Y')
@@ -94,7 +107,7 @@ def get_db_from_amazon(dbname, path, access_key, secret_key):
                     aws_secret_access_key=secret_key)
     filename = get_latest_aws_file(conn, dbname)
 
-    conn.Bucket('11.0').download_file(filename, os.path.join(
+    conn.Bucket(dbname).download_file(filename, os.path.join(
         path, dbname + '.zip'))
 
 
@@ -171,8 +184,8 @@ def restore_database(args):
 
     if not args['-f']:
         print("Downloading filestore from AWS")
-        get_filestore_from_amazon(args['<dbname>'],
-                                  os.path.join(path_to_files, 'filestore'))
+        get_filestore_from_amazon(
+            args['<dbname>'], path_to_files, args['-s'], args['-k'])
         print("Download database from AWS")
         get_db_from_amazon(
             args['<dbname>'], path_to_files, args['-s'], args['-k'])
@@ -188,7 +201,10 @@ def restore_database(args):
         raise Exception('.zip file not found!')
 
     print("Creating new database")
-    dbname = args['<dbname>'] + datetime.now().strftime('%d_%m_%Y')
+
+    dbname = (
+        args['<dbname>'].split('-')[0] +
+        datetime.now().strftime('%d_%m_%Y'))
 
     create_new_db(dbname, args['<dbuser>'], args['<dbpasswd>'])
 
