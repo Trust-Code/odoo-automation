@@ -212,11 +212,11 @@ def restore_database(args):
         dbname, args['<dbuser>'], args['<dbpasswd>'])
 
     arguments = ['psql',
-                 '-h127.0.0.1',
+                 '-h', '127.0.0.1',
                  '-q',
-                 '-d{}'.format(dbname),
-                 '-f{}'.format(os.path.join(path_to_files, 'dump.sql')),
-                 '-U{}'.format(args['<dbuser>']),
+                 '-d', '{}'.format(dbname),
+                 '-f', '{}'.format(os.path.join(path_to_files, 'dump.sql')),
+                 '-U', '{}'.format(args['<dbuser>']),
                  '-W']
 
     print("Restore the database file")
