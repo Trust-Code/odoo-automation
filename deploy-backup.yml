@@ -42,6 +42,12 @@
         owner: odoo
         group: odoo
         mode: 0644
+    - copy:
+        src: scripts/keep.sh
+        dest: /root/keep.sh
+        owner: root
+        group: root
+        mode: 0755
     - template:
         src: templates/aws.credentials
         dest: /home/odoo/.aws/credentials
@@ -134,4 +140,12 @@
         hour: "06"
         minute: "50"
         job: "docker volume rm $(docker volume ls -qf dangling=true)"
+      when: inventory_hostname in groups['producao']
+
+    - name: "Cron to keep services running"
+      cron:
+        name: "Cron to keep services running"
+        user: "root"
+        minute: "*/1"
+        job: /root/keep.sh
       when: inventory_hostname in groups['producao']

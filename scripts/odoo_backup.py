@@ -20,10 +20,6 @@ import tempfile
 from docopt import docopt
 from psycopg2 import connect
 from boto3 import client
-# from boto.s3.lifecycle import (
-#     Lifecycle,
-#     Expiration,
-# )
 
 from common import exec_pg_command, zip_dir
 
