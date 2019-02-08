@@ -58,16 +58,18 @@ def get_filestore_from_amazon(dbname, path, access_key, secret_key):
 
 
 def move_filestore(docker_name, dbname, local, path_to_files):
+    complete_name = dbname + datetime.now().strftime('%d_%m_%Y')
     if local:
         path = os.path.join('/home', getuser(), '.local/share/Odoo/filestore/',
-                            dbname)
+                            complete_name)
     else:
-        path = os.path.join('/opt/dados/', docker_name, 'filestore', dbname)
+        path = os.path.join(
+            '/opt/dados/', docker_name, 'filestore', complete_name)
 
     if not os.path.exists(path):
         os.makedirs(path)
     cmd = 'cp -r ' + os.path.join(
-        path_to_files, 'filestore') + '/' + '. ' + path
+        path_to_files, 'filestore', dbname) + '/' + '. ' + path
     subprocess.check_call(cmd, shell=True)
 
 
@@ -227,7 +229,7 @@ def restore_database(args):
     subprocess.check_call(arguments)
 
     print("Moving filestore for the new database")
-    move_filestore(args['--docker-name'], dbname, args['-l'], path_to_files)
+    move_filestore(args['--docker-name'], args['<dbname>'].split('-')[0], args['-l'], path_to_files)
 
     if args['--exclude']:
 
