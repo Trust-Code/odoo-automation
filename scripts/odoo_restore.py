@@ -43,7 +43,7 @@ def check_args(args):
 
 
 def get_path_to_files(dbname):
-    directory = '/opt/backups/dados/{}'.format(dbname)
+    directory = '/opt/backups/dados/{}/'.format(dbname)
     if not os.path.exists(os.path.join(directory, 'filestore')):
         os.makedirs(os.path.join(directory, 'filestore'))
     return directory
@@ -77,13 +77,13 @@ def get_latest_aws_file(conn, dbname, is_filestore=False):
     prefix = dbname.split('-')[0]
     for obj in bucket.objects.filter(Prefix='{}'.format(prefix),
                                      MaxKeys=len(prefix)+15):
-        date = extract_date_to_order(obj.key, is_filestore)
+        date = extract_date_to_ordenate(obj.key, is_filestore)
         if date is not None:
             objects.update({obj.key: date})
     return sorted(objects.items(), key=lambda x: x[1])[-1][0]
 
 
-def extract_date_to_order(string, get_filestore=False):
+def extract_date_to_ordenate(string, get_filestore=False):
         is_filestore = 'filestore' in string
         if is_filestore:
             if get_filestore:
@@ -195,6 +195,10 @@ def restore_database(args):
         print("Unziping database file")
         archive = ZipFile(os.path.join(path_to_files, args['-f']))
         archive.extractall(path_to_files)
+        print("Unziping filestore file")
+        archive = ZipFile(os.path.join(
+            path_to_files,  args['<dbname>']+"_filestore.zip"))
+        archive.extractall(path_to_files + 'filestore')
 
     except Exception as e:
         print(e)
