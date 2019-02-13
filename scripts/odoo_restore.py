@@ -43,7 +43,7 @@ def check_args(args):
 
 
 def get_path_to_files(dbname):
-    directory = '/opt/backups/dados/{}'.format(dbname)
+    directory = '/opt/backups/dados/{}/'.format(dbname)
     if not os.path.exists(os.path.join(directory, 'filestore')):
         os.makedirs(os.path.join(directory, 'filestore'))
     return directory
@@ -58,16 +58,18 @@ def get_filestore_from_amazon(dbname, path, access_key, secret_key):
 
 
 def move_filestore(docker_name, dbname, local, path_to_files):
+    complete_name = dbname + datetime.now().strftime('%d_%m_%Y')
     if local:
         path = os.path.join('/home', getuser(), '.local/share/Odoo/filestore/',
-                            dbname)
+                            complete_name)
     else:
-        path = os.path.join('/opt/dados/', docker_name, 'filestore', dbname)
+        path = os.path.join(
+            '/opt/dados/', docker_name, 'filestore', complete_name)
 
     if not os.path.exists(path):
         os.makedirs(path)
     cmd = 'cp -r ' + os.path.join(
-        path_to_files, 'filestore') + '/' + '. ' + path
+        path_to_files, 'filestore', dbname) + '/' + '. ' + path
     subprocess.check_call(cmd, shell=True)
 
 
@@ -77,13 +79,13 @@ def get_latest_aws_file(conn, dbname, is_filestore=False):
     prefix = dbname.split('-')[0]
     for obj in bucket.objects.filter(Prefix='{}'.format(prefix),
                                      MaxKeys=len(prefix)+15):
-        date = extract_date_to_order(obj.key, is_filestore)
+        date = extract_date_to_ordenate(obj.key, is_filestore)
         if date is not None:
             objects.update({obj.key: date})
     return sorted(objects.items(), key=lambda x: x[1])[-1][0]
 
 
-def extract_date_to_order(string, get_filestore=False):
+def extract_date_to_ordenate(string, get_filestore=False):
         is_filestore = 'filestore' in string
         if is_filestore:
             if get_filestore:
@@ -195,6 +197,10 @@ def restore_database(args):
         print("Unziping database file")
         archive = ZipFile(os.path.join(path_to_files, args['-f']))
         archive.extractall(path_to_files)
+        print("Unziping filestore file")
+        archive = ZipFile(os.path.join(
+            path_to_files,  args['<dbname>']+"_filestore.zip"))
+        archive.extractall(path_to_files + 'filestore')
 
     except Exception as e:
         print(e)
@@ -223,7 +229,7 @@ def restore_database(args):
     subprocess.check_call(arguments)
 
     print("Moving filestore for the new database")
-    move_filestore(args['--docker-name'], dbname, args['-l'], path_to_files)
+    move_filestore(args['--docker-name'], args['<dbname>'].split('-')[0], args['-l'], path_to_files)
 
     if args['--exclude']:
 
