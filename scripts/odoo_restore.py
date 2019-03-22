@@ -4,26 +4,28 @@
 
 Options:
   -h --help
+  -d DBTEST        name database to create
+  -t BACKUPDATE    backup date to restore (dd-MM-yyyy)
   -s KEY           acess key to amazon server
   -k SKEY          secret key to amazon server
   -l               local backup (change the directory of 'filestore')
-  -d --docker-name name of the odoo docker
+  -c --docker-name name of the odoo docker
   --production     production database (don't change nfse env to 'homologacao')
-  -e --exclude     exclude files after completed process
   -p PATH          path to files, if they are already downloaded
-  -f FILE          name of the '.zip' archive
-
 """
-from docopt import docopt
-from datetime import datetime
+
+import re
+import os
+import uuid
+import hashlib
 import subprocess
+from docopt import docopt
+from datetime import datetime, date
 from getpass import getuser
 from psycopg2 import connect
-import os
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from boto3 import resource
 from zipfile import ZipFile
-import uuid
 
 
 def check_args(args):
@@ -38,23 +40,31 @@ def check_args(args):
         if not os.path.exists(args['-p']):
             exit("Path to file doesn't exist!")
 
-    if args['-f'] and (args['-f'][-4:] != '.zip'):
-        exit("Name of the . zip file must end with '.zip'")
 
-
-def get_path_to_files(dbname):
-    directory = '/opt/backups/dados/{}/'.format(dbname)
+def get_path_to_files(dbname, local):
+    if local:
+        directory = os.path.join('/home', getuser(), 'backup', dbname)
+    else:
+        directory = '/opt/backups/dados/{}/'.format(dbname)
     if not os.path.exists(os.path.join(directory, 'filestore')):
         os.makedirs(os.path.join(directory, 'filestore'))
     return directory
 
 
-def get_filestore_from_amazon(dbname, path, access_key, secret_key):
+def get_backup_from_amazon(dbname, bkp_date, save_to, access_key, secret_key,
+                           filestore=False):
+    bucket_name = re.sub('[^0-9a-z]', '-', dbname)
+    hash = hashlib.md5(bucket_name.encode())
+    bucket_name += '-' + hash.hexdigest()[:8]
+
     conn = resource('s3', aws_access_key_id=access_key,
                     aws_secret_access_key=secret_key)
-    filename = get_latest_aws_file(conn, dbname, is_filestore=True)
-    conn.Bucket(dbname).download_file(filename, os.path.join(
-        path, dbname + '_filestore' + '.zip'))
+
+    filename = '%s_%s.zip' % (dbname, bkp_date.strftime('%d_%m_%Y'))
+    if filestore:
+        filename = '%s_%s_filestore.zip' % (
+            dbname, bkp_date.strftime('%d_%m_%Y'))
+    conn.Bucket(bucket_name).download_file(filename, save_to)
 
 
 def move_filestore(docker_name, dbname, local, path_to_files):
@@ -71,46 +81,6 @@ def move_filestore(docker_name, dbname, local, path_to_files):
     cmd = 'cp -r ' + os.path.join(
         path_to_files, 'filestore', dbname) + '/' + '. ' + path
     subprocess.check_call(cmd, shell=True)
-
-
-def get_latest_aws_file(conn, dbname, is_filestore=False):
-    bucket = conn.Bucket(dbname)
-    objects = {}
-    prefix = dbname.split('-')[0]
-    for obj in bucket.objects.filter(Prefix='{}'.format(prefix),
-                                     MaxKeys=len(prefix)+15):
-        date = extract_date_to_ordenate(obj.key, is_filestore)
-        if date is not None:
-            objects.update({obj.key: date})
-    return sorted(objects.items(), key=lambda x: x[1])[-1][0]
-
-
-def extract_date_to_ordenate(string, get_filestore=False):
-        is_filestore = 'filestore' in string
-        if is_filestore:
-            if get_filestore:
-                return extract_date_from_name(string[0:-14])
-        elif not get_filestore:
-            return extract_date_from_name(string[0:-4])
-        else:
-            return
-
-
-def extract_date_from_name(string):
-    try:
-        file_date = string[-10:]
-    except Exception:
-        return
-    return datetime.strptime(file_date, '%d_%m_%Y')
-
-
-def get_db_from_amazon(dbname, path, access_key, secret_key):
-    conn = resource('s3', aws_access_key_id=access_key,
-                    aws_secret_access_key=secret_key)
-    filename = get_latest_aws_file(conn, dbname)
-
-    conn.Bucket(dbname).download_file(filename, os.path.join(
-        path, dbname + '.zip'))
 
 
 def get_new_database_cursor(dbname, dbuser, dbpasswd):
@@ -137,7 +107,6 @@ def create_new_db(dbname, dbuser, dbpasswd):
 
 
 def change_to_homologacao(cur):
-
     try:
         cur.execute(
             "UPDATE res_company SET tipo_ambiente='2';")
@@ -178,28 +147,34 @@ def delete_enterprise_code(cur):
 
 def restore_database(args):
     path_to_files = args['-p']
+    bkp_date = date.today()
+    if args['-t']:
+        bkp_date = datetime.strptime(args['-t'], '%d-%m-%Y')
 
+    # TODO Melhorar aqui
     if not args['-p']:
-        path_to_files = get_path_to_files(args['<dbname>'])
+        path_to_files = get_path_to_files(args['<dbname>'], args['-l'])
     else:
         path_to_files = os.path.join(path_to_files, args['<dbname>'])
 
-    if not args['-f']:
-        print("Downloading filestore from AWS")
-        get_filestore_from_amazon(
-            args['<dbname>'], path_to_files, args['-s'], args['-k'])
-        print("Download database from AWS")
-        get_db_from_amazon(
-            args['<dbname>'], path_to_files, args['-s'], args['-k'])
-        args['-f'] = args['<dbname>'] + '.zip'
+    print("Downloading filestore from AWS")
+    filestore = os.path.join(path_to_files, 'filestore.zip')
+    get_backup_from_amazon(
+        args['<dbname>'], bkp_date, filestore, args['-s'], args['-k'],
+        filestore=True)
 
+    print("Download database from AWS")
+    database = os.path.join(path_to_files, 'database.zip')
+    get_backup_from_amazon(
+        args['<dbname>'], bkp_date, database, args['-s'], args['-k'])
+    args['-f'] = args['<dbname>'] + '.zip'
+    print(args)
     try:
         print("Unziping database file")
-        archive = ZipFile(os.path.join(path_to_files, args['-f']))
+        archive = ZipFile(database)
         archive.extractall(path_to_files)
         print("Unziping filestore file")
-        archive = ZipFile(os.path.join(
-            path_to_files,  args['<dbname>']+"_filestore.zip"))
+        archive = ZipFile(filestore)
         archive.extractall(path_to_files + 'filestore')
 
     except Exception as e:
@@ -231,13 +206,11 @@ def restore_database(args):
     print("Moving filestore for the new database")
     move_filestore(args['--docker-name'], args['<dbname>'].split('-')[0], args['-l'], path_to_files)
 
-    if args['--exclude']:
-
-        try:
-            os.remove(os.path.join(path_to_files, args['-f']))
-            os.remove(os.path.join(path_to_files, 'dump.sql'))
-        except Exception:
-            pass
+    try:
+        os.remove(os.path.join(path_to_files, args['-f']))
+        os.remove(os.path.join(path_to_files, 'dump.sql'))
+    except Exception:
+        pass
 
     if not args['--production']:
 
