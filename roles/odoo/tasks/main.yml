@@ -185,6 +185,8 @@
         ODOO_VERSION: "{{ item.value.versao }}"
         ODOO_ENTERPRISE: "{{ '1' if item.value.enterprise else 0 }}"
         TRUSTCODE_ENTERPRISE: 1
+        TRUSTCODE_APPS: "{{ '1' if item.value.apps else 0 }}"
+        TRUSTCODE_ONLY: "{{ '1' if trustcode_server else 0 }}"
     with_dict: "{{ docker }}"
 
   - name: Modifica a senha padrão
