@@ -42,11 +42,12 @@
   register: swap_file_check
   tags:
     - swap.file.check
+  when: "{{create_swap}}"
 
 - name: Create swap file
   command: dd if=/dev/zero of={{ swap_file_path }} bs=1024 count={{ swap_file_size_kb }}k
            creates="{{ swap_file_path }}"
-  when: not swap_file_check.stat.exists
+  when: "{{create_swap}} and not swap_file_check.stat.exists"
   tags:
     - swap.file.create
 
@@ -55,20 +56,20 @@
         owner=root
         group=root
         mode=0600
-  when: not swap_file_check.stat.exists
+  when: "{{create_swap}} and not swap_file_check.stat.exists"
   tags:
     - swap.file.permissions
 
 - name: "Check swap file type"
   command: file {{ swap_file_path }}
   register: swapfile
-  when: not swap_file_check.stat.exists
+  when: "{{create_swap}} and not swap_file_check.stat.exists"
   tags:
     - swap.file.mkswap
 
 - name: Make swap file
   command: "mkswap {{ swap_file_path }}"
-  when: not swap_file_check.stat.exists and swapfile.stdout.find('swap file') == -1
+  when: "{{create_swap}} and not swap_file_check.stat.exists and swapfile.stdout.find('swap file') == -1"
   tags:
     - swap.file.mkswap
 
@@ -80,12 +81,13 @@
       passno=0
       dump=0
       state=present
+  when: "{{create_swap}}"
   tags:
     - swap.fstab
 
 - name: Mount swap
   command: "swapon {{ swap_file_path }}"
-  when: not swap_file_check.stat.exists
+  when: "{{create_swap}} and not swap_file_check.stat.exists"
   tags:
     - swap.file.swapon
 
@@ -93,6 +95,7 @@
   sysctl:
     name: vm.swappiness
     value: "{{swappiness}}"
+  when: "{{create_swap}}"
   tags:
     - swap.set.swappiness
 
