@@ -186,6 +186,8 @@
         ODOO_ENTERPRISE: "{{ '1' if item.value.enterprise else 0 }}"
         TRUSTCODE_ENTERPRISE: "{{ '1' if item.value.trustcode_enterprise else 0 }}"
         TRUSTCODE_APPS: "{{ '1' if item.value.apps else 0 }}"
+        USE_SPECIFIC_REPO: "{{ '1' if item.value.use_specific_repo else 0 }}"
+        CLIENT_REPOSITORY: "{{ item.value.client_repository }}"
         TRUSTCODE_ONLY: "{{ '1' if trustcode_server else 0 }}"
     with_dict: "{{ docker }}"
 
